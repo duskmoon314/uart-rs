@@ -1,0 +1,16 @@
+[package]
+name = "uart8250"
+version = "0.1.0"
+edition = "2018"
+authors = ["Campbell He (duskmoon)"]
+license-file = "LICENSE"
+keywords = ["uart"]
+description = "This crate provide a unit struct with many methods to operate uart 8250."
+homepage = "https://github.com/duskmoon314/uart-rs"
+repository = "https://github.com/duskmoon314/uart-rs"
+readme = "README.md"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+volatile-register = "0.2"
