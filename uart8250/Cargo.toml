@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2018"
 authors = ["Campbell He (duskmoon)"]
 license = "MIT"
-license-file = "LICENSE"
 keywords = ["uart"]
 description = "This crate provide a unit struct with many methods to operate uart 8250."
 homepage = "https://github.com/duskmoon314/uart-rs"
