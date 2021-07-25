@@ -1,3 +1,13 @@
+#[cfg(feature = "embedded")]
+use core::convert::Infallible;
+#[cfg(feature = "embedded")]
+use embedded_hal::serial;
+#[cfg(feature = "embedded")]
+use nb;
+
+#[cfg(feature = "fmt")]
+use core::fmt;
+
 use crate::registers;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -582,5 +592,62 @@ impl<const BASE: usize> MmioUart8250<BASE> {
 
     pub fn write_sr(value: u8) {
         unsafe { (*Self::REGS).scratch.write(value) }
+    }
+}
+
+/// ## embedded-hal::serial::Read
+///
+/// This is a very simple implementation, based on [rustsbi/rustsbi-qemu](https://github.com/rustsbi/rustsbi-qemu/blob/main/rustsbi-qemu/src/ns16550a.rs#L36-L52)
+#[cfg(feature = "embedded")]
+impl<const BASE: usize> serial::Read<u8> for MmioUart8250<BASE> {
+    type Error = Infallible;
+
+    fn try_read(&mut self) -> nb::Result<u8, Self::Error> {
+        if Self::is_interrupt_pending() {
+            Ok(Self::read_rbr())
+        } else {
+            Err(nb::Error::WouldBlock)
+        }
+    }
+}
+
+/// ## embedded-hal::serial::Write
+///
+/// This is a very simple implementation, based on [rustsbi/rustsbi-qemu](https://github.com/rustsbi/rustsbi-qemu/blob/main/rustsbi-qemu/src/ns16550a.rs#L54-L75)
+#[cfg(feature = "embedded")]
+impl<const BASE: usize> serial::Write<u8> for MmioUart8250<BASE> {
+    type Error = Infallible;
+
+    fn try_write(&mut self, word: u8) -> nb::Result<(), Self::Error> {
+        Self::write_thr(word);
+        Ok(())
+    }
+
+    fn try_flush(&mut self) -> nb::Result<(), Self::Error> {
+        if Self::is_interrupt_pending() {
+            Ok(())
+        } else {
+            Err(nb::Error::WouldBlock)
+        }
+    }
+}
+
+/// ## fmt::Write
+///
+/// A simple implementation, may be changed in the future
+#[cfg(feature = "fmt")]
+impl<const BASE: usize> fmt::Write for MmioUart8250<BASE> {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        for c in s.as_bytes() {
+            Self::write_thr(*c);
+        }
+        Ok(())
+    }
+
+    fn write_fmt(&mut self, args: fmt::Arguments<'_>) -> fmt::Result {
+        for c in args.as_str().unwrap_or("").as_bytes() {
+            Self::write_thr(*c);
+        }
+        Ok(())
     }
 }
