@@ -8,8 +8,6 @@ This crate provide a unit struct with many methods to operate uart 8250.
 
 #![no_std]
 
-extern crate volatile_register;
-
 pub mod registers;
 pub mod uart;
 
