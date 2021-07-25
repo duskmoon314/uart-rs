@@ -13,4 +13,4 @@ extern crate volatile_register;
 pub mod registers;
 pub mod uart;
 
-pub use uart::{ChipFIFOInfo, InterruptType, MmioUart8250, Parity};
+pub use uart::{ChipFifoInfo, InterruptType, MmioUart8250, Parity};

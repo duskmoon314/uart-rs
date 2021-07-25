@@ -1,11 +1,13 @@
 use crate::registers;
+
 #[derive(Debug, Clone, PartialEq)]
-pub enum ChipFIFOInfo {
-    NoFIFO,
+pub enum ChipFifoInfo {
+    NoFifo,
     Reserved,
     EnabledNoFunction,
     Enabled,
 }
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum InterruptType {
     ModemStatus,
@@ -15,6 +17,7 @@ pub enum InterruptType {
     Timeout,
     Reserved,
 }
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Parity {
     No,
@@ -274,12 +277,12 @@ impl<const BASE: usize> MmioUart8250<BASE> {
     }
 
     /// Read IIR\[7:6\] to get FIFO status
-    pub fn read_fifo_status() -> ChipFIFOInfo {
+    pub fn read_fifo_status() -> ChipFifoInfo {
         match unsafe { (*Self::REGS).rw[2].read() & 0b1100_0000 } {
-            0 => ChipFIFOInfo::NoFIFO,
-            0b0100_0000 => ChipFIFOInfo::Reserved,
-            0b1000_0000 => ChipFIFOInfo::EnabledNoFunction,
-            0b1100_0000 => ChipFIFOInfo::Enabled,
+            0 => ChipFifoInfo::NoFifo,
+            0b0100_0000 => ChipFifoInfo::Reserved,
+            0b1000_0000 => ChipFifoInfo::EnabledNoFunction,
+            0b1100_0000 => ChipFifoInfo::Enabled,
             _ => panic!("Can't reached"),
         }
     }
