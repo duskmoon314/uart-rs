@@ -19,7 +19,7 @@ checksum = "546c37ac5d9e56f55e73b677106873d9d9f5190605e41a856503623648488cae"
 
 [[package]]
 name = "uart8250"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "embedded-hal",
  "nb",

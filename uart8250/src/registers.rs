@@ -2,6 +2,13 @@ use core::u8;
 
 use volatile_register::{RO, RW};
 
+#[macro_export]
+macro_rules! cast {
+    ($expr:expr) => {
+        ($expr) as *const crate::registers::Registers;
+    };
+}
+
 /// # UART Registers
 ///
 /// The chip has a total of 12 different registers that are mapped into 8 different Port I/O locations / Memory Mapped I/O addresses.

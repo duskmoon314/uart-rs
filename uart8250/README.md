@@ -13,9 +13,20 @@ Besides, this crate currently is not following [Rust API Guidelines](https://rus
 ## Usage
 
 ```rust
-type Uart = MmioUart8250<0x1000_0100>;
-Uart::init(11_059_200, 115200);
-if let Some(c) = Uart::read_byte() {
+let uart = MmioUart8250::new(0x1000_0000);
+uart.init(11_059_200, 115200);
+if let Some(c) = uart.read_byte() {
     //...
+}
+```
+
+If you turn on feature `fmt`
+
+```rust
+let uart = MmioUart8250::new(0x1000_0000);
+uart.init(11_059_200, 115200);
+
+pub fn print_uart(args: fmt::Arguments) {
+    uart.write_fmt(args).unwrap();
 }
 ```
