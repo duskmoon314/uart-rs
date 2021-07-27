@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.3.1
+
+- Remove incorrect `write_fmt`
+
 ## v0.3.0
 
 - **BREAKING CHANGE** `MmioUart8250` is restructured

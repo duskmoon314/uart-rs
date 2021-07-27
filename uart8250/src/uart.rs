@@ -650,11 +650,4 @@ impl fmt::Write for MmioUart8250 {
         }
         Ok(())
     }
-
-    fn write_fmt(&mut self, args: fmt::Arguments<'_>) -> fmt::Result {
-        for c in args.as_str().unwrap_or("").as_bytes() {
-            self.write_thr(*c);
-        }
-        Ok(())
-    }
 }
