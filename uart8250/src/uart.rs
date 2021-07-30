@@ -53,7 +53,7 @@ impl MmioUart8250 {
     /// Other way to init can be done by using other methods below
     pub fn init(&self, clock: usize, baud_rate: usize) {
         // Enable DLAB and Set divisor
-        self.toggle_divisor_latch_accessible();
+        self.enable_divisor_latch_accessible();
         let divisor = clock / (16 * baud_rate);
         self.write_dll(divisor as u8);
         self.write_dlh((divisor >> 8) as u8);
@@ -65,7 +65,12 @@ impl MmioUart8250 {
         // No modem control
         self.write_mcr(0);
         // Enable received_data_available_interrupt
-        self.toggle_received_data_available_interrupt();
+        self.enable_received_data_available_interrupt();
+    }
+
+    /// Set a new base_address
+    pub fn set_base_address(&mut self, base_address: usize) {
+        self.base_address = base_address;
     }
 
     /// Read a byte from uart
@@ -162,6 +167,17 @@ impl MmioUart8250 {
         unsafe { (*cast!(self.base_address)).rw[1].write(value) }
     }
 
+    /// Set divisor latch according to clock and baud_rate, then set DLAB to false
+    pub fn set_divisor(&self, clock: usize, baud_rate: usize) {
+        if !self.is_divisor_latch_accessible() {
+            self.toggle_divisor_latch_accessible();
+        }
+        let divisor = clock / (16 * baud_rate);
+        self.write_dll(divisor as u8);
+        self.write_dlh((divisor >> 8) as u8);
+        self.toggle_divisor_latch_accessible();
+    }
+
     /// Read IER (offset + 1)
     ///
     /// Read IER to get what interrupts are enabled
@@ -203,6 +219,16 @@ impl MmioUart8250 {
         unsafe { (*cast!(self.base_address)).rw[1].modify(|v| v ^ 0b0010_0000) }
     }
 
+    /// enable low power mode (16750) (IER\[5\])
+    pub fn enable_low_power_mode(&self) {
+        unsafe { (*cast!(self.base_address)).rw[1].modify(|v| v | 0b0010_0000) }
+    }
+
+    /// disable low power mode (16750) (IER\[5\])
+    pub fn disable_low_power_mode(&self) {
+        unsafe { (*cast!(self.base_address)).rw[1].modify(|v| v & !0b0010_0000) }
+    }
+
     /// get whether sleep mode (16750) is enabled (IER\[4\])
     pub fn is_sleep_mode_enabled(&self) -> bool {
         unsafe { (*cast!(self.base_address)).rw[1].read() & 0b0001_0000 != 0 }
@@ -211,6 +237,16 @@ impl MmioUart8250 {
     /// toggle sleep mode (16750) (IER\[4\])
     pub fn toggle_sleep_mode(&self) {
         unsafe { (*cast!(self.base_address)).rw[1].modify(|v| v ^ 0b0001_0000) }
+    }
+
+    /// enable sleep mode (16750) (IER\[4\])
+    pub fn enable_sleep_mode(&self) {
+        unsafe { (*cast!(self.base_address)).rw[1].modify(|v| v | 0b0001_0000) }
+    }
+
+    /// disable sleep mode (16750) (IER\[4\])
+    pub fn disable_sleep_mode(&self) {
+        unsafe { (*cast!(self.base_address)).rw[1].modify(|v| v & !0b0001_0000) }
     }
 
     /// get whether modem status interrupt is enabled (IER\[3\])
@@ -223,6 +259,16 @@ impl MmioUart8250 {
         unsafe { (*cast!(self.base_address)).rw[1].modify(|v| v ^ 0b0000_1000) }
     }
 
+    /// enable modem status interrupt (IER\[3\])
+    pub fn enable_modem_status_interrupt(&self) {
+        unsafe { (*cast!(self.base_address)).rw[1].modify(|v| v | 0b0000_1000) }
+    }
+
+    /// disable modem status interrupt (IER\[3\])
+    pub fn disable_modem_status_interrupt(&self) {
+        unsafe { (*cast!(self.base_address)).rw[1].modify(|v| v & !0b0000_1000) }
+    }
+
     /// get whether receiver line status interrupt is enabled (IER\[2\])
     pub fn is_receiver_line_status_interrupt_enabled(&self) -> bool {
         unsafe { (*cast!(self.base_address)).rw[1].read() & 0b0000_0100 != 0 }
@@ -231,6 +277,16 @@ impl MmioUart8250 {
     /// toggle receiver line status interrupt (IER\[2\])
     pub fn toggle_receiver_line_status_interrupt(&self) {
         unsafe { (*cast!(self.base_address)).rw[1].modify(|v| v ^ 0b0000_0100) }
+    }
+
+    /// enable receiver line status interrupt (IER\[2\])
+    pub fn enable_receiver_line_status_interrupt(&self) {
+        unsafe { (*cast!(self.base_address)).rw[1].modify(|v| v | 0b0000_0100) }
+    }
+
+    /// disable receiver line status interrupt (IER\[2\])
+    pub fn disable_receiver_line_status_interrupt(&self) {
+        unsafe { (*cast!(self.base_address)).rw[1].modify(|v| v & !0b0000_0100) }
     }
 
     /// get whether transmitter holding register empty interrupt is enabled (IER\[1\])
@@ -243,6 +299,16 @@ impl MmioUart8250 {
         unsafe { (*cast!(self.base_address)).rw[1].modify(|v| v ^ 0b0000_0010) }
     }
 
+    /// enable transmitter holding register empty interrupt (IER\[1\])
+    pub fn enable_transmitter_holding_register_empty_interrupt(&self) {
+        unsafe { (*cast!(self.base_address)).rw[1].modify(|v| v | 0b0000_0010) }
+    }
+
+    /// disable transmitter holding register empty interrupt (IER\[1\])
+    pub fn disable_transmitter_holding_register_empty_interrupt(&self) {
+        unsafe { (*cast!(self.base_address)).rw[1].modify(|v| v & !0b0000_0010) }
+    }
+
     /// get whether received data available is enabled (IER\[0\])
     pub fn is_received_data_available_interrupt_enabled(&self) -> bool {
         unsafe { (*cast!(self.base_address)).rw[1].read() & 0b0000_0001 != 0 }
@@ -251,6 +317,16 @@ impl MmioUart8250 {
     /// toggle received data available (IER\[0\])
     pub fn toggle_received_data_available_interrupt(&self) {
         unsafe { (*cast!(self.base_address)).rw[1].modify(|v| v ^ 0b0000_0001) }
+    }
+
+    /// enable received data available (IER\[0\])
+    pub fn enable_received_data_available_interrupt(&self) {
+        unsafe { (*cast!(self.base_address)).rw[1].modify(|v| v | 0b0000_0001) }
+    }
+
+    /// disable received data available (IER\[0\])
+    pub fn disable_received_data_available_interrupt(&self) {
+        unsafe { (*cast!(self.base_address)).rw[1].modify(|v| v & !0b0000_0001) }
     }
 
     /// Read IIR (offset + 2)
@@ -397,6 +473,16 @@ impl MmioUart8250 {
         unsafe { (*cast!(self.base_address)).rw[3].modify(|v| v ^ 0b1000_0000) }
     }
 
+    /// enable DLAB
+    pub fn enable_divisor_latch_accessible(&self) {
+        unsafe { (*cast!(self.base_address)).rw[3].modify(|v| v | 0b1000_0000) }
+    }
+
+    /// disable DLAB
+    pub fn disable_divisor_latch_accessible(&self) {
+        unsafe { (*cast!(self.base_address)).rw[3].modify(|v| v & !0b1000_0000) }
+    }
+
     /// get parity of used data protocol
     pub fn get_parity(&self) -> Parity {
         match unsafe { (*cast!(self.base_address)).rw[3].read() & 0b0011_1000 } {
@@ -509,14 +595,17 @@ impl MmioUart8250 {
         unsafe { (*cast!(self.base_address)).ro[0].read() }
     }
 
+    /// get whether there is an error in received FIFO
     pub fn is_received_fifo_error(&self) -> bool {
         unsafe { (*cast!(self.base_address)).ro[0].read() & 0b1000_0000 != 0 }
     }
 
+    /// get whether data holding registers are empty
     pub fn is_data_holding_registers_empty(&self) -> bool {
         unsafe { (*cast!(self.base_address)).ro[0].read() & 0b0100_0000 != 0 }
     }
 
+    /// get whether transmitter holding register is empty
     pub fn is_transmitter_holding_register_empty(&self) -> bool {
         unsafe { (*cast!(self.base_address)).ro[0].read() & 0b0010_0000 != 0 }
     }

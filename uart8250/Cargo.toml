@@ -1,6 +1,6 @@
 [package]
 name = "uart8250"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2018"
 authors = ["Campbell He (duskmoon)"]
 license = "MIT"

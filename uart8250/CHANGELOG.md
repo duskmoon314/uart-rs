@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.2
+
+- Add `enable_*` `disable_*` methods to provide more specific usage
+- Add `set_base_address` to change `base_address`
+
 ## v0.3.1
 
 - Remove incorrect `write_fmt`
