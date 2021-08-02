@@ -1,0 +1,24 @@
+[package]
+name = "uart_xps"
+version = "0.1.0"
+edition = "2018"
+authors = ["Campbell He (duskmoon)"]
+license = "MIT"
+keywords = ["uart"]
+categories = ["embedded"]
+description = "This crate provide a struct with many methods to operate Xilinx XPS UART Lite."
+homepage = "https://github.com/duskmoon314/uart-rs"
+repository = "https://github.com/duskmoon314/uart-rs"
+readme = "README.md"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# embedded-hal = { version = "=1.0.0-alpha.4", optional = true }
+# nb = { version = "1", optional = true }
+volatile-register = "0.2"
+
+[features]
+default = []
+# embedded = ["embedded-hal", "nb"]
+fmt = []
