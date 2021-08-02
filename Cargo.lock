@@ -19,10 +19,17 @@ checksum = "546c37ac5d9e56f55e73b677106873d9d9f5190605e41a856503623648488cae"
 
 [[package]]
 name = "uart8250"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "embedded-hal",
  "nb",
+ "volatile-register",
+]
+
+[[package]]
+name = "uart_xps"
+version = "0.1.0"
+dependencies = [
  "volatile-register",
 ]
 
