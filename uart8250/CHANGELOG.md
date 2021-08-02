@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.4.0
+
+- **BREAKING CHANGE** `MmioUart8250` is restructured to be more rusty
+  - use `reg: &'a mut Registers` instead of `base_address: usize` to access register via `self.reg.rw[0]`
+- **BREAKING CHANGE** `init()` enable transmitter_holding_register_empty_interrupt now
+
 ## v0.3.2
 
 - Add `enable_*` `disable_*` methods to provide more specific usage
