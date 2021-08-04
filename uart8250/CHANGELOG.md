@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.2
+
+- Don't enable transmitter_holding_register_empty_interrupt in `init()`
+  - It seems that 16550 used in qemu keeps triggering THREI when THR is empty
+
 ## v0.4.1
 
 - fix: IIR[0] == 0 when interrupt is pending

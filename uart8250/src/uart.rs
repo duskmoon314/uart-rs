@@ -69,10 +69,8 @@ impl<'a> MmioUart8250<'a> {
         // No modem control
         self.write_mcr(0);
         // Enable received_data_available_interrupt
+        self.enable_received_data_available_interrupt();
         // Enable transmitter_holding_register_empty_interrupt
-        self.write_ier(3);
-        // same to following 2 lines
-        // self.enable_received_data_available_interrupt();
         // self.enable_transmitter_holding_register_empty_interrupt();
     }
 
