@@ -1,12 +1,12 @@
 [package]
 name = "uart8250"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2018"
 authors = ["Campbell He (duskmoon)"]
 license = "MIT"
 keywords = ["uart"]
 categories = ["embedded"]
-description = "This crate provide a unit struct with many methods to operate uart 8250."
+description = "This crate provide a struct with many methods to operate uart 8250."
 homepage = "https://github.com/duskmoon314/uart-rs"
 repository = "https://github.com/duskmoon314/uart-rs"
 readme = "README.md"

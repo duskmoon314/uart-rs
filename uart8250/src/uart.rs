@@ -390,7 +390,7 @@ impl<'a> MmioUart8250<'a> {
     /// Read IIR\[3:1\] to get interrupt type
     pub fn read_interrupt_type(&self) -> InterruptType {
         match self.reg.rw[2].read() & 0b0000_1110 {
-            0 => InterruptType::ModemStatus,
+            0b0000 => InterruptType::ModemStatus,
             0b0010 => InterruptType::TransmitterHoldingRegisterEmpty,
             0b0100 => InterruptType::ReceivedDataAvailable,
             0b0110 => InterruptType::ReceiverLineStatus,
@@ -402,7 +402,7 @@ impl<'a> MmioUart8250<'a> {
 
     /// get whether interrupt is pending (IIR\[0\])
     pub fn is_interrupt_pending(&self) -> bool {
-        self.reg.rw[2].read() & 1 != 0
+        self.reg.rw[2].read() & 1 == 0
     }
 
     /// Write FCR (offset + 2) to control FIFO buffers

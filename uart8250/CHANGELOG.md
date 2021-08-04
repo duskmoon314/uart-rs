@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.1
+
+- fix: IIR[0] == 0 when interrupt is pending
+
 ## v0.4.0
 
 - **BREAKING CHANGE** `MmioUart8250` is restructured to be more rusty
