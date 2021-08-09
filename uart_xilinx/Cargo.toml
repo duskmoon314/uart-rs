@@ -1,12 +1,12 @@
 [package]
-name = "uart_xps"
+name = "uart_xilinx"
 version = "0.1.0"
 edition = "2018"
 authors = ["Campbell He (duskmoon)"]
 license = "MIT"
 keywords = ["uart"]
 categories = ["embedded"]
-description = "This crate provide a struct with many methods to operate Xilinx XPS UART Lite."
+description = "This crate provide a struct with many methods to operate uarts in Xilinx's FPGA: XPS UART Lite, AXI UART Lite..."
 homepage = "https://github.com/duskmoon314/uart-rs"
 repository = "https://github.com/duskmoon314/uart-rs"
 readme = "README.md"
@@ -16,6 +16,7 @@ readme = "README.md"
 [dependencies]
 # embedded-hal = { version = "=1.0.0-alpha.4", optional = true }
 # nb = { version = "1", optional = true }
+bitflags = "1"
 volatile-register = "0.2"
 
 [features]
