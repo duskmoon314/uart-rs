@@ -125,6 +125,10 @@ impl<'a> MmioUartXpsLite<'a> {
         self.write_ctrl((Control::ENABLE_INTERRUPT.bits() as u32).reverse_bits());
     }
 
+    pub fn disable_interrupt(&self) {
+        self.write_ctrl((Control::ENABLE_INTERRUPT.bits() as u32).reverse_bits());
+    }
+
     pub fn clear_rx_fifo(&self, enable_interrupt: bool) {
         self.write_ctrl(if enable_interrupt {
             ((Control::ENABLE_INTERRUPT | Control::REST_RX_FIFO).bits() as u32).reverse_bits()
@@ -261,6 +265,10 @@ impl<'a> MmioUartAxiLite<'a> {
     }
 
     pub fn enable_interrupt(&self) {
+        self.write_ctrl(Control::ENABLE_INTERRUPT.bits() as u32);
+    }
+
+    pub fn disable_interrupt(&self) {
         self.write_ctrl(Control::ENABLE_INTERRUPT.bits() as u32);
     }
 
