@@ -507,7 +507,7 @@ impl<'a> MmioUartAxi16550<'a> {
 impl<'a> fmt::Write for MmioUartAxi16550<'a> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         for c in s.as_bytes() {
-            self.write_thr(*c);
+            self.write_thr((*c) as u32);
         }
         Ok(())
     }
