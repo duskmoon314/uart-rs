@@ -14,6 +14,8 @@ This crate provide a struct with many methods to operate uarts in Xilinx's FPGA:
 #[macro_use]
 extern crate bitflags;
 
+pub mod uart_16550;
 pub mod uart_lite;
 
+pub use uart_16550::MmioUartAxi16550;
 pub use uart_lite::{MmioUartAxiLite, MmioUartXpsLite};
