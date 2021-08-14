@@ -1,14 +1,69 @@
-#[cfg(feature = "embedded")]
-use core::convert::Infallible;
-#[cfg(feature = "embedded")]
-use embedded_hal::serial;
-#[cfg(feature = "embedded")]
-use nb;
-
 #[cfg(feature = "fmt")]
 use core::fmt;
 
 use crate::registers::Registers;
+
+bitflags! {
+    /// Interrupt Enable Register (bitflags)
+    pub struct IER: u8 {
+        /// Enable Received Data Available Interrupt
+        const RDAI  = 0b0000_0001;
+        /// Enable Transmitter Holding Register Empty Interrupt
+        const THREI = 0b0000_0010;
+        /// Enable Receiver Line Status Interrupt
+        const RLSI  = 0b0000_0100;
+        /// Enable Modem Status Interrupt
+        const MSI   = 0b0000_1000;
+        /// Enable Sleep Mode (16750)
+        const SM    = 0b0001_0000;
+        /// Enable Low Power Mode (16750)
+        const LPM   = 0b0010_0000;
+    }
+}
+
+bitflags! {
+    /// Line Status Register (bitflags)
+    pub struct LSR: u8 {
+        /// Data Ready
+        const DR = 0b0000_0001;
+        /// Overrun Error
+        const OE = 0b0000_0010;
+        /// Parity Error
+        const PE = 0b0000_0100;
+        /// Framing Error
+        const FE = 0b0000_1000;
+        /// Break Interrupt
+        const BI = 0b0001_0000;
+        /// Transmitter Holding Register Empty
+        const THRE = 0b0010_0000;
+        /// Data Holding Regiters Empty
+        const DHRE = 0b0100_0000;
+        /// Error in Received FIFO
+        const RFE = 0b1000_0000;
+    }
+}
+
+bitflags! {
+    /// Modem Status Register (bitflags)
+    pub struct MSR: u8 {
+        /// Delta Clear To Send
+        const DCTS = 0b0000_0001;
+        ///Delta Data Set Ready
+        const DDSR = 0b0000_0010;
+        ///Trailing Edge Ring Indicator
+        const TERI = 0b0000_0100;
+        ///Delta Data Carrier Detect
+        const DDCD = 0b0000_1000;
+        ///Clear To Send
+        const CTS = 0b0001_0000;
+        ///Data Set Ready
+        const DSR = 0b0010_0000;
+        ///Ring Indicator
+        const RI = 0b0100_0000;
+        ///Carrier Detect
+        const CD = 0b1000_0000;
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ChipFifoInfo {
@@ -57,10 +112,7 @@ impl<'a> MmioUart8250<'a> {
     /// Other way to init can be done by using other methods below
     pub fn init(&self, clock: usize, baud_rate: usize) {
         // Enable DLAB and Set divisor
-        self.enable_divisor_latch_accessible();
-        let divisor = clock / (16 * baud_rate);
-        self.write_dll(divisor as u8);
-        self.write_dlh((divisor >> 8) as u8);
+        self.set_divisor(clock, baud_rate);
 
         // Disable DLAB and set word length 8 bits, no parity, 1 stop bit
         self.write_lcr(3);
@@ -108,6 +160,7 @@ impl<'a> MmioUart8250<'a> {
     /// > These registers really are the "heart" of serial data communication, and how data is transferred from your software to another computer and how it gets data from other devices. Reading and Writing to these registers is simply a matter of accessing the Port I/O address for the respective UART.
     /// >
     /// > If the receive buffer is occupied or the FIFO is full, the incoming data is discarded and the Receiver Line Status interrupt is written to the IIR register. The Overrun Error bit is also set in the Line Status Register.
+    #[inline]
     pub fn write_thr(&self, value: u8) {
         unsafe { self.reg.rw[0].write(value) }
     }
@@ -115,6 +168,7 @@ impl<'a> MmioUart8250<'a> {
     /// read RBR (offset + 0)
     ///
     /// Read Receiver Buffer to get data
+    #[inline]
     pub fn read_rbr(&self) -> u8 {
         self.reg.rw[0].read()
     }
@@ -148,6 +202,7 @@ impl<'a> MmioUart8250<'a> {
     /// | 38400     | 3                    | $00                     | $03                    |
     /// | 57600     | 2                    | $00                     | $02                    |
     /// | 115200    | 1                    | $00                     | $01                    |
+    #[inline]
     pub fn read_dll(&self) -> u8 {
         self.reg.rw[0].read()
     }
@@ -155,6 +210,7 @@ impl<'a> MmioUart8250<'a> {
     /// write DLL (offset + 0)
     ///
     /// set divisor latch low byte in the register
+    #[inline]
     pub fn write_dll(&self, value: u8) {
         unsafe { self.reg.rw[0].write(value) }
     }
@@ -162,6 +218,7 @@ impl<'a> MmioUart8250<'a> {
     /// read DLH (offset + 1)
     ///
     /// get divisor latch high byte in the register
+    #[inline]
     pub fn read_dlh(&self) -> u8 {
         self.reg.rw[1].read()
     }
@@ -169,11 +226,13 @@ impl<'a> MmioUart8250<'a> {
     /// write DLH (offset + 1)
     ///
     /// set divisor latch high byte in the register
+    #[inline]
     pub fn write_dlh(&self, value: u8) {
         unsafe { self.reg.rw[1].write(value) }
     }
 
     /// Set divisor latch according to clock and baud_rate, then set DLAB to false
+    #[inline]
     pub fn set_divisor(&self, clock: usize, baud_rate: usize) {
         self.enable_divisor_latch_accessible();
         let divisor = clock / (16 * baud_rate);
@@ -202,6 +261,7 @@ impl<'a> MmioUart8250<'a> {
     /// > | 2   | Enable Receiver Line Status Interrupt               |
     /// > | 1   | Enable Transmitter Holding Register Empty Interrupt |
     /// > | 0   | Enable Received Data Available Interrupt            |
+    #[inline]
     pub fn read_ier(&self) -> u8 {
         self.reg.rw[1].read()
     }
@@ -209,128 +269,141 @@ impl<'a> MmioUart8250<'a> {
     /// Write IER (offset + 1)
     ///
     /// Write Interrupt Enable Register to turn on/off interrupts
+    #[inline]
     pub fn write_ier(&self, value: u8) {
         unsafe { self.reg.rw[1].write(value) }
     }
 
+    /// Get IER bitflags
+    #[inline]
+    pub fn ier(&self) -> IER {
+        IER::from_bits_truncate(self.read_ier())
+    }
+
+    /// Set IER via bitflags
+    #[inline]
+    pub fn set_ier(&self, flag: IER) {
+        self.write_ier(flag.bits())
+    }
+
     /// get whether low power mode (16750) is enabled (IER\[5\])
     pub fn is_low_power_mode_enabled(&self) -> bool {
-        self.reg.rw[1].read() & 0b0010_0000 != 0
+        self.ier().contains(IER::LPM)
     }
 
     /// toggle low power mode (16750) (IER\[5\])
     pub fn toggle_low_power_mode(&self) {
-        unsafe { self.reg.rw[1].modify(|v| v ^ 0b0010_0000) }
+        self.set_ier(self.ier() ^ IER::LPM)
     }
 
     /// enable low power mode (16750) (IER\[5\])
     pub fn enable_low_power_mode(&self) {
-        unsafe { self.reg.rw[1].modify(|v| v | 0b0010_0000) }
+        self.set_ier(self.ier() | IER::LPM)
     }
 
     /// disable low power mode (16750) (IER\[5\])
     pub fn disable_low_power_mode(&self) {
-        unsafe { self.reg.rw[1].modify(|v| v & !0b0010_0000) }
+        self.set_ier(self.ier() & !IER::LPM)
     }
 
     /// get whether sleep mode (16750) is enabled (IER\[4\])
     pub fn is_sleep_mode_enabled(&self) -> bool {
-        self.reg.rw[1].read() & 0b0001_0000 != 0
+        self.ier().contains(IER::SM)
     }
 
     /// toggle sleep mode (16750) (IER\[4\])
     pub fn toggle_sleep_mode(&self) {
-        unsafe { self.reg.rw[1].modify(|v| v ^ 0b0001_0000) }
+        self.set_ier(self.ier() ^ IER::SM)
     }
 
     /// enable sleep mode (16750) (IER\[4\])
     pub fn enable_sleep_mode(&self) {
-        unsafe { self.reg.rw[1].modify(|v| v | 0b0001_0000) }
+        self.set_ier(self.ier() | IER::SM)
     }
 
     /// disable sleep mode (16750) (IER\[4\])
     pub fn disable_sleep_mode(&self) {
-        unsafe { self.reg.rw[1].modify(|v| v & !0b0001_0000) }
+        self.set_ier(self.ier() & !IER::SM)
     }
 
     /// get whether modem status interrupt is enabled (IER\[3\])
     pub fn is_modem_status_interrupt_enabled(&self) -> bool {
-        self.reg.rw[1].read() & 0b0000_1000 != 0
+        self.ier().contains(IER::MSI)
     }
 
     /// toggle modem status interrupt (IER\[3\])
     pub fn toggle_modem_status_interrupt(&self) {
-        unsafe { self.reg.rw[1].modify(|v| v ^ 0b0000_1000) }
+        self.set_ier(self.ier() ^ IER::MSI)
     }
 
     /// enable modem status interrupt (IER\[3\])
     pub fn enable_modem_status_interrupt(&self) {
-        unsafe { self.reg.rw[1].modify(|v| v | 0b0000_1000) }
+        self.set_ier(self.ier() | IER::MSI)
     }
 
     /// disable modem status interrupt (IER\[3\])
     pub fn disable_modem_status_interrupt(&self) {
-        unsafe { self.reg.rw[1].modify(|v| v & !0b0000_1000) }
+        self.set_ier(self.ier() & !IER::MSI)
     }
 
     /// get whether receiver line status interrupt is enabled (IER\[2\])
     pub fn is_receiver_line_status_interrupt_enabled(&self) -> bool {
-        self.reg.rw[1].read() & 0b0000_0100 != 0
+        self.ier().contains(IER::RLSI)
     }
 
     /// toggle receiver line status interrupt (IER\[2\])
     pub fn toggle_receiver_line_status_interrupt(&self) {
-        unsafe { self.reg.rw[1].modify(|v| v ^ 0b0000_0100) }
+        self.set_ier(self.ier() ^ IER::RLSI)
     }
 
     /// enable receiver line status interrupt (IER\[2\])
     pub fn enable_receiver_line_status_interrupt(&self) {
-        unsafe { self.reg.rw[1].modify(|v| v | 0b0000_0100) }
+        self.set_ier(self.ier() | IER::RLSI)
     }
 
     /// disable receiver line status interrupt (IER\[2\])
     pub fn disable_receiver_line_status_interrupt(&self) {
-        unsafe { self.reg.rw[1].modify(|v| v & !0b0000_0100) }
+        self.set_ier(self.ier() & !IER::RLSI)
     }
 
     /// get whether transmitter holding register empty interrupt is enabled (IER\[1\])
     pub fn is_transmitter_holding_register_empty_interrupt_enabled(&self) -> bool {
-        self.reg.rw[1].read() & 0b0000_0010 != 0
+        self.ier().contains(IER::THREI)
     }
 
     /// toggle transmitter holding register empty interrupt (IER\[1\])
     pub fn toggle_transmitter_holding_register_empty_interrupt(&self) {
-        unsafe { self.reg.rw[1].modify(|v| v ^ 0b0000_0010) }
+        self.set_ier(self.ier() ^ IER::THREI)
     }
 
     /// enable transmitter holding register empty interrupt (IER\[1\])
     pub fn enable_transmitter_holding_register_empty_interrupt(&self) {
-        unsafe { self.reg.rw[1].modify(|v| v | 0b0000_0010) }
+        self.set_ier(self.ier() | IER::THREI)
     }
 
     /// disable transmitter holding register empty interrupt (IER\[1\])
     pub fn disable_transmitter_holding_register_empty_interrupt(&self) {
-        unsafe { self.reg.rw[1].modify(|v| v & !0b0000_0010) }
+        self.set_ier(self.ier() & !IER::THREI)
     }
 
     /// get whether received data available is enabled (IER\[0\])
     pub fn is_received_data_available_interrupt_enabled(&self) -> bool {
-        self.reg.rw[1].read() & 0b0000_0001 != 0
+        self.ier().contains(IER::RDAI)
     }
 
     /// toggle received data available (IER\[0\])
     pub fn toggle_received_data_available_interrupt(&self) {
-        unsafe { self.reg.rw[1].modify(|v| v ^ 0b0000_0001) }
+        self.set_ier(self.ier() ^ IER::RDAI)
     }
 
     /// enable received data available (IER\[0\])
     pub fn enable_received_data_available_interrupt(&self) {
-        unsafe { self.reg.rw[1].modify(|v| v | 0b0000_0001) }
+        self.set_ier(self.ier() | IER::RDAI)
     }
 
     /// disable received data available (IER\[0\])
     pub fn disable_received_data_available_interrupt(&self) {
-        unsafe { self.reg.rw[1].modify(|v| v & !0b0000_0001) }
+        self.set_ier(self.ier() & !IER::RDAI)
     }
 
     /// Read IIR (offset + 2)
@@ -365,6 +438,7 @@ impl<'a> MmioUart8250<'a> {
     /// > |            | 1                                 | 1     | 0                                 | Time-out Interrupt Pending (16550 & later)   | Reading Receive Buffer Register(RBR)                                                      |
     /// > |            | 1                                 | 1     | 1                                 | Reserved                                     | N/A                                                                                       |
     /// > | 0          | Interrupt Pending Flag            |       |                                   |                                              |                                                                                           |
+    #[inline]
     pub fn read_iir(&self) -> u8 {
         self.reg.rw[2].read()
     }
@@ -386,20 +460,29 @@ impl<'a> MmioUart8250<'a> {
     }
 
     /// Read IIR\[3:1\] to get interrupt type
-    pub fn read_interrupt_type(&self) -> InterruptType {
-        match self.reg.rw[2].read() & 0b0000_1110 {
-            0b0000 => InterruptType::ModemStatus,
-            0b0010 => InterruptType::TransmitterHoldingRegisterEmpty,
-            0b0100 => InterruptType::ReceivedDataAvailable,
-            0b0110 => InterruptType::ReceiverLineStatus,
-            0b1100 => InterruptType::Timeout,
-            0b1000 | 0b1010 | 0b1110 => InterruptType::Reserved,
-            _ => panic!("Can't reached"),
+    pub fn read_interrupt_type(&self) -> Option<InterruptType> {
+        let irq = self.reg.rw[2].read() & 0b0000_1111;
+        if irq & 1 != 0 {
+            None
+        } else {
+            match irq {
+                0b0000 => Some(InterruptType::ModemStatus),
+                0b0010 => Some(InterruptType::TransmitterHoldingRegisterEmpty),
+                0b0100 => Some(InterruptType::ReceivedDataAvailable),
+                0b0110 => Some(InterruptType::ReceiverLineStatus),
+                0b1100 => Some(InterruptType::Timeout),
+                0b1000 | 0b1010 | 0b1110 => Some(InterruptType::Reserved),
+                _ => panic!("Can't reached"),
+            }
         }
     }
 
     /// get whether interrupt is pending (IIR\[0\])
-    pub fn is_interrupt_pending(&self) -> bool {
+    ///
+    /// # Safety
+    ///
+    /// read iir will reset THREI, so use read_interrupt_type may be better
+    pub unsafe fn is_interrupt_pending(&self) -> bool {
         self.reg.rw[2].read() & 1 == 0
     }
 
@@ -424,6 +507,7 @@ impl<'a> MmioUart8250<'a> {
     /// > | 2     | Clear Transmit FIFO         |       |                                   |                         |
     /// > | 1     | Clear Receive FIFO          |       |                                   |                         |
     /// > | 0     | Enable FIFOs                |       |                                   |                         |
+    #[inline]
     pub fn write_fcr(&self, value: u8) {
         unsafe { self.reg.rw[2].write(value) }
     }
@@ -456,6 +540,7 @@ impl<'a> MmioUart8250<'a> {
     /// > |          | 0                        | 1                            | 6 Bits      |               |
     /// > |          | 1                        | 0                            | 7 Bits      |               |
     /// > |          | 1                        | 1                            | 8 Bits      |               |
+    #[inline]
     pub fn read_lcr(&self) -> u8 {
         self.reg.rw[3].read()
     }
@@ -463,6 +548,7 @@ impl<'a> MmioUart8250<'a> {
     /// Write LCR (offset + 3)
     ///
     /// Write Line Control Register to set DLAB and the serial data protocol
+    #[inline]
     pub fn write_lcr(&self, value: u8) {
         unsafe { self.reg.rw[3].write(value) }
     }
@@ -558,6 +644,7 @@ impl<'a> MmioUart8250<'a> {
     /// > | 2   | Auxiliary Output 1               |
     /// > | 1   | Request To Send                  |
     /// > | 0   | Data Terminal Ready              |
+    #[inline]
     pub fn read_mcr(&self) -> u8 {
         self.reg.rw[4].read()
     }
@@ -565,6 +652,7 @@ impl<'a> MmioUart8250<'a> {
     /// Write MCR (offset + 4)
     ///
     /// Write Modem Control Register to control flow
+    #[inline]
     pub fn write_mcr(&self, value: u8) {
         unsafe { self.reg.rw[4].write(value) }
     }
@@ -585,43 +673,50 @@ impl<'a> MmioUart8250<'a> {
     /// > | 2   | Parity Error                       |
     /// > | 1   | Overrun Error                      |
     /// > | 0   | Data Ready                         |
+    #[inline]
     pub fn read_lsr(&self) -> u8 {
         self.reg.ro[0].read()
     }
 
+    /// Get LSR bitflags
+    #[inline]
+    pub fn lsr(&self) -> LSR {
+        LSR::from_bits_truncate(self.read_lsr())
+    }
+
     /// get whether there is an error in received FIFO
     pub fn is_received_fifo_error(&self) -> bool {
-        self.reg.ro[0].read() & 0b1000_0000 != 0
+        self.lsr().contains(LSR::RFE)
     }
 
     /// get whether data holding registers are empty
     pub fn is_data_holding_registers_empty(&self) -> bool {
-        self.reg.ro[0].read() & 0b0100_0000 != 0
+        self.lsr().contains(LSR::DHRE)
     }
 
     /// get whether transmitter holding register is empty
     pub fn is_transmitter_holding_register_empty(&self) -> bool {
-        self.reg.ro[0].read() & 0b0010_0000 != 0
+        self.lsr().contains(LSR::THRE)
     }
 
     pub fn is_break_interrupt(&self) -> bool {
-        self.reg.ro[0].read() & 0b0001_0000 != 0
+        self.lsr().contains(LSR::BI)
     }
 
     pub fn is_framing_error(&self) -> bool {
-        self.reg.ro[0].read() & 0b0000_1000 != 0
+        self.lsr().contains(LSR::FE)
     }
 
     pub fn is_parity_error(&self) -> bool {
-        self.reg.ro[0].read() & 0b0000_0100 != 0
+        self.lsr().contains(LSR::PE)
     }
 
     pub fn is_overrun_error(&self) -> bool {
-        self.reg.ro[0].read() & 0b0000_0010 != 0
+        self.lsr().contains(LSR::OE)
     }
 
     pub fn is_data_ready(&self) -> bool {
-        self.reg.ro[0].read() & 0b0000_0001 != 0
+        self.lsr().contains(LSR::DR)
     }
 
     /// Read MSR (offset + 6)
@@ -640,85 +735,57 @@ impl<'a> MmioUart8250<'a> {
     /// > | 2   | Trailing Edge Ring Indicator |
     /// > | 1   | Delta Data Set Ready         |
     /// > | 0   | Delta Clear To Send          |
+    #[inline]
     pub fn read_msr(&self) -> u8 {
         self.reg.ro[1].read()
     }
 
+    /// Get MSR bitflags
+    #[inline]
+    pub fn msr(&self) -> MSR {
+        MSR::from_bits_truncate(self.read_msr())
+    }
+
     pub fn is_carrier_detect(&self) -> bool {
-        self.reg.ro[1].read() & 0b1000_0000 != 0
+        self.msr().contains(MSR::CD)
     }
 
     pub fn is_ring_indicator(&self) -> bool {
-        self.reg.ro[1].read() & 0b0100_0000 != 0
+        self.msr().contains(MSR::RI)
     }
 
     pub fn is_data_set_ready(&self) -> bool {
-        self.reg.ro[1].read() & 0b0010_0000 != 0
+        self.msr().contains(MSR::DSR)
     }
 
     pub fn is_clear_to_send(&self) -> bool {
-        self.reg.ro[1].read() & 0b0001_0000 != 0
+        self.msr().contains(MSR::CTS)
     }
 
     pub fn is_delta_data_carrier_detect(&self) -> bool {
-        self.reg.ro[1].read() & 0b0000_1000 != 0
+        self.msr().contains(MSR::DDCD)
     }
 
     pub fn is_trailing_edge_ring_indicator(&self) -> bool {
-        self.reg.ro[1].read() & 0b0000_0100 != 0
+        self.msr().contains(MSR::TERI)
     }
 
     pub fn is_delta_data_set_ready(&self) -> bool {
-        self.reg.ro[1].read() & 0b0000_0010 != 0
+        self.msr().contains(MSR::DDSR)
     }
 
     pub fn is_delta_clear_to_send(&self) -> bool {
-        self.reg.ro[1].read() & 0b0000_0001 != 0
+        self.msr().contains(MSR::DCTS)
     }
 
+    #[inline]
     pub fn read_sr(&self) -> u8 {
         self.reg.scratch.read()
     }
 
+    #[inline]
     pub fn write_sr(&self, value: u8) {
         unsafe { self.reg.scratch.write(value) }
-    }
-}
-
-/// ## embedded-hal::serial::Read
-///
-/// This is a very simple implementation, based on [rustsbi/rustsbi-qemu](https://github.com/rustsbi/rustsbi-qemu/blob/main/rustsbi-qemu/src/ns16550a.rs#L36-L52)
-#[cfg(feature = "embedded")]
-impl<'a> serial::Read<u8> for MmioUart8250<'a> {
-    type Error = Infallible;
-
-    fn try_read(&mut self) -> nb::Result<u8, Self::Error> {
-        if self.is_interrupt_pending() {
-            Ok(self.read_rbr())
-        } else {
-            Err(nb::Error::WouldBlock)
-        }
-    }
-}
-
-/// ## embedded-hal::serial::Write
-///
-/// This is a very simple implementation, based on [rustsbi/rustsbi-qemu](https://github.com/rustsbi/rustsbi-qemu/blob/main/rustsbi-qemu/src/ns16550a.rs#L54-L75)
-#[cfg(feature = "embedded")]
-impl<'a> serial::Write<u8> for MmioUart8250<'a> {
-    type Error = Infallible;
-
-    fn try_write(&mut self, word: u8) -> nb::Result<(), Self::Error> {
-        self.write_thr(word);
-        Ok(())
-    }
-
-    fn try_flush(&mut self) -> nb::Result<(), Self::Error> {
-        if self.is_interrupt_pending() {
-            Ok(())
-        } else {
-            Err(nb::Error::WouldBlock)
-        }
     }
 }
 

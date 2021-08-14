@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.5.0
+
+- Add several bitflags of status registers
+- Add `#[inline]` to most read/write methods
+- **BREAKING CHANGE** Traits from `embedded_hal` are removed due to `is_interrupt_pending` will reset THREI
+
 ## v0.4.2
 
 - Don't enable transmitter_holding_register_empty_interrupt in `init()`
