@@ -8,6 +8,7 @@ This crate provide a struct with many methods to operate uarts in Xilinx's FPGA:
 
 - [DS571 - XPS UART Lite (v1.02a) Data Sheet (v1.8)](https://china.xilinx.com/support/documentation/ip_documentation/xps_uartlite/v1_02_a/xps_uartlite.pdf)
 - [PG142 - AXI UART Lite v2.0 Product Guide (v2.0)](https://www.xilinx.com/support/documentation/ip_documentation/axi_uartlite/v2_0/pg142-axi-uartlite.pdf)
+- [PG143 - AXI UART 16550 v2.0 Product Guide (v2.0)](https://www.xilinx.com/support/documentation/ip_documentation/axi_uart16550/v2_0/pg143-axi-uart16550.pdf)
 
 ## Intro
 

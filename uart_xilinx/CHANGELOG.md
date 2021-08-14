@@ -2,4 +2,4 @@
 
 ## v0.1.0
 
-- Basic function of `MmioUartAxiLite`, `MmioUartXpsLite`
+- Basic function of `MmioUartAxiLite`, `MmioUartXpsLite`, `MmioUartAxi16550`
