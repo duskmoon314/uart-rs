@@ -61,6 +61,7 @@ impl<'a> MmioUartXpsLite<'a> {
     }
 
     /// Read Rx FIFO
+    #[inline]
     pub fn read_rx(&self) -> u32 {
         self.reg.rx.read()
     }
@@ -204,6 +205,7 @@ impl<'a> MmioUartAxiLite<'a> {
     }
 
     /// Read Rx FIFO
+    #[inline]
     pub fn read_rx(&self) -> u32 {
         self.reg.rx.read()
     }
