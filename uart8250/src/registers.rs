@@ -2,13 +2,6 @@ use core::u8;
 
 use volatile_register::{RO, RW};
 
-#[macro_export]
-macro_rules! cast {
-    ($expr:expr) => {
-        unsafe { &mut *(($expr) as *mut crate::registers::Registers) }
-    };
-}
-
 /// # UART Registers
 ///
 /// The chip has a total of 12 different registers that are mapped into 8 different Port I/O locations / Memory Mapped I/O addresses.
@@ -34,4 +27,11 @@ pub struct Registers {
     pub rw: [RW<u8>; 5],
     pub ro: [RO<u8>; 2],
     pub scratch: RW<u8>,
+}
+
+impl Registers {
+    /// Constructs a new instance of the UART registers starting at the given base address.
+    pub fn from_base_address(base_address: usize) -> &'static mut Self {
+        unsafe { &mut *(base_address as *mut crate::registers::Registers) }
+    }
 }

@@ -103,7 +103,7 @@ impl<'a> MmioUart8250<'a> {
     /// New a uart
     pub fn new(base_address: usize) -> Self {
         Self {
-            reg: cast!(base_address),
+            reg: Registers::from_base_address(base_address),
         }
     }
 
@@ -128,7 +128,7 @@ impl<'a> MmioUart8250<'a> {
 
     /// Set a new base_address
     pub fn set_base_address(&mut self, base_address: usize) {
-        self.reg = cast!(base_address);
+        self.reg = Registers::from_base_address(base_address);
     }
 
     /// Read a byte from uart
