@@ -65,7 +65,7 @@ bitflags! {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ChipFifoInfo {
     NoFifo,
     Reserved,
@@ -73,7 +73,7 @@ pub enum ChipFifoInfo {
     Enabled,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum InterruptType {
     ModemStatus,
     TransmitterHoldingRegisterEmpty,
@@ -83,7 +83,7 @@ pub enum InterruptType {
     Reserved,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Parity {
     No,
     Odd,
