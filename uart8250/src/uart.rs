@@ -67,6 +67,81 @@ bitflags! {
     }
 }
 
+bitflags! {
+    /// FIFO Control Register (bitflags)
+    pub struct FCR: u8 {
+        /// Interrupt trigger level is 1 byte.
+        const INTERRUPT_TRIGGER_LEVEL_1 = 0b0000_0000;
+        /// Interrupt trigger level is 4 or 16 bytes, for 16 or 64 byte FIFO respectively.
+        const INTERRUPT_TRIGGER_LEVEL_4_16 = 0b0100_0000;
+        /// Interrupt trigger level is 8 or 32 bytes, for 16 or 64 byte FIFO respectively.
+        const INTERRUPT_TRIGGER_LEVEL_8_32 = 0b1000_0000;
+        /// Interrupt trigger level is 14 or 56 bytes, for 16 or 64 byte FIFO respectively.
+        const INTERRUPT_TRIGGER_LEVEL_14_56 = 0b1100_0000;
+        /// Enable 64 byte FIFO (16750)
+        const ENABLE_64_BYTE = 0b0010_0000;
+        /// DMA mode select
+        const DMA_MODE = 0b0000_1000;
+        /// Clear transmit FIFO
+        const CLEAR_TX = 0b0000_0100;
+        /// Clear receive FIFO
+        const CLEAR_RX = 0b0000_0010;
+        /// Enable FIFOs.
+        const ENABLE = 0b0000_0001;
+    }
+}
+
+bitflags! {
+    /// Line Control Register (bitflags)
+    pub struct LCR: u8 {
+        /// Divisor Latch Access Bit
+        const DLAB = 0b1000_0000;
+        /// Set Break Enable
+        const SBE = 0b0100_0000;
+        /// No parity
+        const NO_PARITY = 0b0000_0000;
+        /// Odd parity
+        const ODD_PARITY = 0b0000_1000;
+        /// Even parity
+        const EVEN_PARITY = 0b0001_1000;
+        /// Mark
+        const MARK = 0b0010_1000;
+        /// Space
+        const SPACE = 0b0011_1000;
+        /// One stop bit
+        const ONE_STOP_BIT = 0b0000_0000;
+        /// 1.5 or 2 stop bits
+        const TWO_STOP_BITS = 0b0000_0100;
+        /// 5 bit word length
+        const WORD_5_BITS = 0b0000_0000;
+        /// 6 bit word length
+        const WORD_6_BITS = 0b0000_0001;
+        /// 7 bit word length
+        const WORD_7_BITS = 0b0000_0010;
+        /// 8 bit word length
+        const WORD_8_BITS = 0b0000_0011;
+
+    }
+}
+
+bitflags! {
+    /// Modem Control Register (bitflags)
+    pub struct MCR: u8 {
+        /// Autoflow control enabled (16750)
+        const AUTOFLOW_CONTROL_ENABLED = 0b0010_0000;
+        /// Loopback mode
+        const LOOPBACK_MODE = 0b0001_0000;
+        /// Auxiliary output 2
+        const AUX_OUTPUT_2 = 0b0000_1000;
+        /// Auxiliary output 1
+        const AUX_OUTPUT_1 = 0b0000_0100;
+        /// Request to Send
+        const RTS = 0b0000_0010;
+        /// Data Terminal Ready
+        const DTR = 0b0000_0001;
+    }
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ChipFifoInfo {
     NoFifo,
@@ -138,11 +213,11 @@ impl<'a> MmioUart8250<'a> {
         self.set_divisor(clock, baud_rate);
 
         // Disable DLAB and set word length 8 bits, no parity, 1 stop bit
-        self.reg.write_lcr(3);
+        self.set_lcr(LCR::NO_PARITY | LCR::ONE_STOP_BIT | LCR::WORD_8_BITS);
         // Enable FIFO
-        self.reg.write_fcr(1);
+        self.set_fcr(FCR::ENABLE);
         // No modem control
-        self.reg.write_mcr(0);
+        self.set_mcr(MCR::empty());
         // Enable received_data_available_interrupt
         self.enable_received_data_available_interrupt();
         // Enable transmitter_holding_register_empty_interrupt
@@ -388,6 +463,36 @@ impl<'a> MmioUart8250<'a> {
         } else {
             panic!("Invalid word length")
         }
+    }
+
+    /// Sets FCR bitflags
+    #[inline]
+    pub fn set_fcr(&self, fcr: FCR) {
+        self.reg.write_fcr(fcr.bits())
+    }
+
+    /// Gets LCR bitflags
+    #[inline]
+    pub fn lcr(&self) -> LCR {
+        LCR::from_bits_truncate(self.reg.read_lcr())
+    }
+
+    /// Sets LCR bitflags
+    #[inline]
+    pub fn set_lcr(&self, lcr: LCR) {
+        self.reg.write_lcr(lcr.bits())
+    }
+
+    /// Gets MCR bitflags
+    #[inline]
+    pub fn mcr(&self) -> MCR {
+        MCR::from_bits_truncate(self.reg.read_mcr())
+    }
+
+    /// Sets MCR bitflags
+    #[inline]
+    pub fn set_mcr(&self, mcr: MCR) {
+        self.reg.write_mcr(mcr.bits())
     }
 
     /// Get LSR bitflags
