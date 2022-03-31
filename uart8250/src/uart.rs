@@ -92,24 +92,24 @@ pub enum Parity {
     Space,
 }
 
-/// # MMIO version of uart 8250
+/// # MMIO version of an 8250 UART.
 ///
-/// **Noticed** This is only tested on the NS16550 compatible UART used in QEMU 5.0 virt machine of RISC-V
+/// **Note** This is only tested on the NS16550 compatible UART used in QEMU 5.0 virt machine of RISC-V.
 pub struct MmioUart8250<'a> {
     reg: &'a mut Registers,
 }
 
 impl<'a> MmioUart8250<'a> {
-    /// New a uart
+    /// Creates a new UART.
     pub fn new(base_address: usize) -> Self {
         Self {
             reg: Registers::from_base_address(base_address),
         }
     }
 
-    /// A basic way to init the uart with interrupt enable
+    /// Initialises the UART with common settings and interrupts enabled.
     ///
-    /// Other way to init can be done by using other methods below
+    /// More customised initialisation can be done using other methods below.
     pub fn init(&self, clock: usize, baud_rate: usize) {
         // Enable DLAB and Set divisor
         self.set_divisor(clock, baud_rate);
@@ -126,14 +126,14 @@ impl<'a> MmioUart8250<'a> {
         // self.enable_transmitter_holding_register_empty_interrupt();
     }
 
-    /// Set a new base_address
+    /// Sets a new base address for the UART.
     pub fn set_base_address(&mut self, base_address: usize) {
         self.reg = Registers::from_base_address(base_address);
     }
 
-    /// Read a byte from uart
+    /// Reads a byte from the UART.
     ///
-    /// Return `None` when data is not ready (RBR\[0\] != 1)
+    /// Returns `None` when data is not ready (RBR\[0\] != 1)
     pub fn read_byte(&self) -> Option<u8> {
         if self.is_data_ready() {
             Some(self.read_rbr())
@@ -142,9 +142,9 @@ impl<'a> MmioUart8250<'a> {
         }
     }
 
-    /// Write a byte to uart
+    /// Writes a byte to the UART.
     ///
-    /// Error are not concerned now **MAYBE TODO**
+    /// TODO: This currently ignores errors.
     pub fn write_byte(&self, byte: u8) {
         self.write_thr(byte);
     }
