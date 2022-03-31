@@ -22,10 +22,15 @@ use volatile_register::{RO, RW};
 /// | +5           | x    | Read       | LSR    | Line Status Register              |
 /// | +6           | x    | Read       | MSR    | Modem Status Register             |
 /// | +7           | x    | Read/Write | SR     | Scratch Register                  |
-#[repr(C)]
+#[repr(C, packed)]
 pub struct Registers {
-    pub rw: [RW<u8>; 5],
-    pub ro: [RO<u8>; 2],
+    pub thr_rbr_dll: RW<u8>,
+    pub ier_dlh: RW<u8>,
+    pub iir_fcr: RW<u8>,
+    pub lcr: RW<u8>,
+    pub mcr: RW<u8>,
+    pub lsr: RO<u8>,
+    pub msr: RO<u8>,
     pub scratch: RW<u8>,
 }
 

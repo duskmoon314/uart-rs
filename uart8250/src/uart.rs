@@ -162,7 +162,7 @@ impl<'a> MmioUart8250<'a> {
     /// > If the receive buffer is occupied or the FIFO is full, the incoming data is discarded and the Receiver Line Status interrupt is written to the IIR register. The Overrun Error bit is also set in the Line Status Register.
     #[inline]
     pub fn write_thr(&self, value: u8) {
-        unsafe { self.reg.rw[0].write(value) }
+        unsafe { self.reg.thr_rbr_dll.write(value) }
     }
 
     /// read RBR (offset + 0)
@@ -170,7 +170,7 @@ impl<'a> MmioUart8250<'a> {
     /// Read Receiver Buffer to get data
     #[inline]
     pub fn read_rbr(&self) -> u8 {
-        self.reg.rw[0].read()
+        self.reg.thr_rbr_dll.read()
     }
 
     /// read DLL (offset + 0)
@@ -204,7 +204,7 @@ impl<'a> MmioUart8250<'a> {
     /// | 115200    | 1                    | $00                     | $01                    |
     #[inline]
     pub fn read_dll(&self) -> u8 {
-        self.reg.rw[0].read()
+        self.reg.thr_rbr_dll.read()
     }
 
     /// write DLL (offset + 0)
@@ -212,7 +212,7 @@ impl<'a> MmioUart8250<'a> {
     /// set divisor latch low byte in the register
     #[inline]
     pub fn write_dll(&self, value: u8) {
-        unsafe { self.reg.rw[0].write(value) }
+        unsafe { self.reg.thr_rbr_dll.write(value) }
     }
 
     /// read DLH (offset + 1)
@@ -220,7 +220,7 @@ impl<'a> MmioUart8250<'a> {
     /// get divisor latch high byte in the register
     #[inline]
     pub fn read_dlh(&self) -> u8 {
-        self.reg.rw[1].read()
+        self.reg.ier_dlh.read()
     }
 
     /// write DLH (offset + 1)
@@ -228,7 +228,7 @@ impl<'a> MmioUart8250<'a> {
     /// set divisor latch high byte in the register
     #[inline]
     pub fn write_dlh(&self, value: u8) {
-        unsafe { self.reg.rw[1].write(value) }
+        unsafe { self.reg.ier_dlh.write(value) }
     }
 
     /// Set divisor latch according to clock and baud_rate, then set DLAB to false
@@ -263,7 +263,7 @@ impl<'a> MmioUart8250<'a> {
     /// > | 0   | Enable Received Data Available Interrupt            |
     #[inline]
     pub fn read_ier(&self) -> u8 {
-        self.reg.rw[1].read()
+        self.reg.ier_dlh.read()
     }
 
     /// Write IER (offset + 1)
@@ -271,7 +271,7 @@ impl<'a> MmioUart8250<'a> {
     /// Write Interrupt Enable Register to turn on/off interrupts
     #[inline]
     pub fn write_ier(&self, value: u8) {
-        unsafe { self.reg.rw[1].write(value) }
+        unsafe { self.reg.ier_dlh.write(value) }
     }
 
     /// Get IER bitflags
@@ -440,12 +440,12 @@ impl<'a> MmioUart8250<'a> {
     /// > | 0          | Interrupt Pending Flag            |       |                                   |                                              |                                                                                           |
     #[inline]
     pub fn read_iir(&self) -> u8 {
-        self.reg.rw[2].read()
+        self.reg.iir_fcr.read()
     }
 
     /// Read IIR\[7:6\] to get FIFO status
     pub fn read_fifo_status(&self) -> ChipFifoInfo {
-        match self.reg.rw[2].read() & 0b1100_0000 {
+        match self.reg.iir_fcr.read() & 0b1100_0000 {
             0 => ChipFifoInfo::NoFifo,
             0b0100_0000 => ChipFifoInfo::Reserved,
             0b1000_0000 => ChipFifoInfo::EnabledNoFunction,
@@ -456,12 +456,12 @@ impl<'a> MmioUart8250<'a> {
 
     /// get whether 64 Byte fifo (16750 only) is enabled (IIR\[5\])
     pub fn is_64byte_fifo_enabled(&self) -> bool {
-        self.reg.rw[2].read() & 0b0010_0000 != 0
+        self.reg.iir_fcr.read() & 0b0010_0000 != 0
     }
 
     /// Read IIR\[3:1\] to get interrupt type
     pub fn read_interrupt_type(&self) -> Option<InterruptType> {
-        let irq = self.reg.rw[2].read() & 0b0000_1111;
+        let irq = self.reg.iir_fcr.read() & 0b0000_1111;
         if irq & 1 != 0 {
             None
         } else {
@@ -483,7 +483,7 @@ impl<'a> MmioUart8250<'a> {
     ///
     /// read iir will reset THREI, so use read_interrupt_type may be better
     pub unsafe fn is_interrupt_pending(&self) -> bool {
-        self.reg.rw[2].read() & 1 == 0
+        self.reg.iir_fcr.read() & 1 == 0
     }
 
     /// Write FCR (offset + 2) to control FIFO buffers
@@ -509,7 +509,7 @@ impl<'a> MmioUart8250<'a> {
     /// > | 0     | Enable FIFOs                |       |                                   |                         |
     #[inline]
     pub fn write_fcr(&self, value: u8) {
-        unsafe { self.reg.rw[2].write(value) }
+        unsafe { self.reg.iir_fcr.write(value) }
     }
 
     /// Read LCR (offset + 3)
@@ -542,7 +542,7 @@ impl<'a> MmioUart8250<'a> {
     /// > |          | 1                        | 1                            | 8 Bits      |               |
     #[inline]
     pub fn read_lcr(&self) -> u8 {
-        self.reg.rw[3].read()
+        self.reg.lcr.read()
     }
 
     /// Write LCR (offset + 3)
@@ -550,32 +550,32 @@ impl<'a> MmioUart8250<'a> {
     /// Write Line Control Register to set DLAB and the serial data protocol
     #[inline]
     pub fn write_lcr(&self, value: u8) {
-        unsafe { self.reg.rw[3].write(value) }
+        unsafe { self.reg.lcr.write(value) }
     }
 
     /// get whether DLAB is enabled
     pub fn is_divisor_latch_accessible(&self) -> bool {
-        self.reg.rw[3].read() & 0b1000_0000 != 0
+        self.reg.lcr.read() & 0b1000_0000 != 0
     }
 
     /// toggle DLAB
     pub fn toggle_divisor_latch_accessible(&self) {
-        unsafe { self.reg.rw[3].modify(|v| v ^ 0b1000_0000) }
+        unsafe { self.reg.lcr.modify(|v| v ^ 0b1000_0000) }
     }
 
     /// enable DLAB
     pub fn enable_divisor_latch_accessible(&self) {
-        unsafe { self.reg.rw[3].modify(|v| v | 0b1000_0000) }
+        unsafe { self.reg.lcr.modify(|v| v | 0b1000_0000) }
     }
 
     /// disable DLAB
     pub fn disable_divisor_latch_accessible(&self) {
-        unsafe { self.reg.rw[3].modify(|v| v & !0b1000_0000) }
+        unsafe { self.reg.lcr.modify(|v| v & !0b1000_0000) }
     }
 
     /// get parity of used data protocol
     pub fn get_parity(&self) -> Parity {
-        match self.reg.rw[3].read() & 0b0011_1000 {
+        match self.reg.lcr.read() & 0b0011_1000 {
             0b0000_0000 => Parity::No,
             0b0000_1000 => Parity::Odd,
             0b0001_1000 => Parity::Even,
@@ -588,11 +588,11 @@ impl<'a> MmioUart8250<'a> {
     /// set parity
     pub fn set_parity(&self, parity: Parity) {
         match parity {
-            Parity::No => unsafe { self.reg.rw[3].modify(|v| (v & 0b1100_0111)) },
-            Parity::Odd => unsafe { self.reg.rw[3].modify(|v| (v & 0b1100_0111) | 0b0000_1000) },
-            Parity::Even => unsafe { self.reg.rw[3].modify(|v| (v & 0b1100_0111) | 0b0001_1000) },
-            Parity::Mark => unsafe { self.reg.rw[3].modify(|v| (v & 0b1100_0111) | 0b0010_1000) },
-            Parity::Space => unsafe { self.reg.rw[3].modify(|v| v | 0b0011_1000) },
+            Parity::No => unsafe { self.reg.lcr.modify(|v| (v & 0b1100_0111)) },
+            Parity::Odd => unsafe { self.reg.lcr.modify(|v| (v & 0b1100_0111) | 0b0000_1000) },
+            Parity::Even => unsafe { self.reg.lcr.modify(|v| (v & 0b1100_0111) | 0b0001_1000) },
+            Parity::Mark => unsafe { self.reg.lcr.modify(|v| (v & 0b1100_0111) | 0b0010_1000) },
+            Parity::Space => unsafe { self.reg.lcr.modify(|v| v | 0b0011_1000) },
         }
     }
 
@@ -600,27 +600,27 @@ impl<'a> MmioUart8250<'a> {
     ///
     /// Simply return a u8 to indicate 1 or 1.5/2 bits
     pub fn get_stop_bit(&self) -> u8 {
-        ((self.reg.rw[3].read() & 0b100) >> 2) + 1
+        ((self.reg.lcr.read() & 0b100) >> 2) + 1
     }
 
     /// set stop bit, only 1 and 2 can be used as `stop_bit`
     pub fn set_stop_bit(&self, stop_bit: u8) {
         match stop_bit {
-            1 => unsafe { self.reg.rw[3].modify(|v| v & 0b1111_1011) },
-            2 => unsafe { self.reg.rw[3].modify(|v| v | 0b0000_0100) },
+            1 => unsafe { self.reg.lcr.modify(|v| v & 0b1111_1011) },
+            2 => unsafe { self.reg.lcr.modify(|v| v | 0b0000_0100) },
             _ => panic!("Invalid stop bit"),
         }
     }
 
     /// get word length of used data protocol
     pub fn get_word_length(&self) -> u8 {
-        (self.reg.rw[3].read() & 0b11) + 5
+        (self.reg.lcr.read() & 0b11) + 5
     }
 
     /// set word length, only 5..=8 can be used as `length`
     pub fn set_word_length(&self, length: u8) {
         if (5..=8).contains(&length) {
-            unsafe { self.reg.rw[3].modify(|v| v | (length - 5)) }
+            unsafe { self.reg.lcr.modify(|v| v | (length - 5)) }
         } else {
             panic!("Invalid word length")
         }
@@ -646,7 +646,7 @@ impl<'a> MmioUart8250<'a> {
     /// > | 0   | Data Terminal Ready              |
     #[inline]
     pub fn read_mcr(&self) -> u8 {
-        self.reg.rw[4].read()
+        self.reg.mcr.read()
     }
 
     /// Write MCR (offset + 4)
@@ -654,7 +654,7 @@ impl<'a> MmioUart8250<'a> {
     /// Write Modem Control Register to control flow
     #[inline]
     pub fn write_mcr(&self, value: u8) {
-        unsafe { self.reg.rw[4].write(value) }
+        unsafe { self.reg.mcr.write(value) }
     }
 
     /// Read LSR (offset + 5)
@@ -675,7 +675,7 @@ impl<'a> MmioUart8250<'a> {
     /// > | 0   | Data Ready                         |
     #[inline]
     pub fn read_lsr(&self) -> u8 {
-        self.reg.ro[0].read()
+        self.reg.lsr.read()
     }
 
     /// Get LSR bitflags
@@ -737,7 +737,7 @@ impl<'a> MmioUart8250<'a> {
     /// > | 0   | Delta Clear To Send          |
     #[inline]
     pub fn read_msr(&self) -> u8 {
-        self.reg.ro[1].read()
+        self.reg.msr.read()
     }
 
     /// Get MSR bitflags
