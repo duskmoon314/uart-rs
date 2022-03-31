@@ -8,9 +8,6 @@ This crate provides a struct with many methods to operate an 8250 UART.
 
 #![no_std]
 
-#[macro_use]
-extern crate bitflags;
-
 pub mod registers;
 pub mod uart;
 

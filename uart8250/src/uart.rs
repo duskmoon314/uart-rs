@@ -1,3 +1,4 @@
+use bitflags::bitflags;
 #[cfg(feature = "fmt")]
 use core::fmt;
 
