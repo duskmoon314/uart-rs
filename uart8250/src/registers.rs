@@ -5,7 +5,7 @@ use volatile_register::{RO, RW};
 #[macro_export]
 macro_rules! cast {
     ($expr:expr) => {
-        unsafe { &mut *(($expr) as *mut crate::registers::Registers) };
+        unsafe { &mut *(($expr) as *mut crate::registers::Registers) }
     };
 }
 
