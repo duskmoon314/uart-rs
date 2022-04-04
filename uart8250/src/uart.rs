@@ -1,4 +1,3 @@
-use bitflags::bitflags;
 #[cfg(feature = "embedded")]
 use core::convert::Infallible;
 use core::fmt::{self, Display, Formatter};
@@ -14,7 +13,7 @@ register_bitfields![
     u8,
 
     /// Interrupt Enable Register
-    pub IER2 [
+    pub IER [
         /// Enable Received Data Available Interrupt
         RDAI OFFSET(0) NUMBITS(1) [],
         /// Enable Transmitter Holding Register Empty Interrupt
@@ -32,13 +31,13 @@ register_bitfields![
     /// Line Control Register
     pub LCR [
         /// Divisor Latch Access Bit
-        DLAB OFFSET(7) NUMBITS(1) [], // = 0b1000_0000;
+        DLAB OFFSET(7) NUMBITS(1) [],
         /// Set Break Enable
-        SBE OFFSET(6) NUMBITS(1) [], // = 0b0100_0000;
+        SBE OFFSET(6) NUMBITS(1) [],
         /// Parity
         Parity OFFSET(3) NUMBITS(3) [
             /// No parity
-            None = 0,
+            No = 0,
             /// Odd parity
             Odd = 1,
             /// Even parity
@@ -67,111 +66,111 @@ register_bitfields![
             Bits8 = 3,
         ],
     ],
-];
 
-bitflags! {
-    /// Interrupt Enable Register (bitflags)
-    pub struct IER: u8 {
-        /// Enable Received Data Available Interrupt
-        const RDAI  = 0b0000_0001;
-        /// Enable Transmitter Holding Register Empty Interrupt
-        const THREI = 0b0000_0010;
-        /// Enable Receiver Line Status Interrupt
-        const RLSI  = 0b0000_0100;
-        /// Enable Modem Status Interrupt
-        const MSI   = 0b0000_1000;
-        /// Enable Sleep Mode (16750)
-        const SM    = 0b0001_0000;
-        /// Enable Low Power Mode (16750)
-        const LPM   = 0b0010_0000;
-    }
-}
-
-bitflags! {
-    /// Line Status Register (bitflags)
-    pub struct LSR: u8 {
+    /// Line Status Register
+    pub LSR [
         /// Data Ready
-        const DR = 0b0000_0001;
+        DR OFFSET(0) NUMBITS(1) [],
         /// Overrun Error
-        const OE = 0b0000_0010;
+        OE OFFSET(1) NUMBITS(1) [],
         /// Parity Error
-        const PE = 0b0000_0100;
+        PE OFFSET(2) NUMBITS(1) [],
         /// Framing Error
-        const FE = 0b0000_1000;
+        FE OFFSET(3) NUMBITS(1) [],
         /// Break Interrupt
-        const BI = 0b0001_0000;
+        BI OFFSET(4) NUMBITS(1) [],
         /// Transmitter Holding Register Empty
-        const THRE = 0b0010_0000;
+        THRE OFFSET(5) NUMBITS(1) [],
         /// Data Holding Regiters Empty
-        const DHRE = 0b0100_0000;
+        DHRE OFFSET(6) NUMBITS(1) [],
         /// Error in Received FIFO
-        const RFE = 0b1000_0000;
-    }
-}
+        RFE OFFSET(7) NUMBITS(1) [],
+    ],
 
-bitflags! {
-    /// Modem Status Register (bitflags)
-    pub struct MSR: u8 {
+    /// Modem Status Register
+    pub MSR [
         /// Delta Clear To Send
-        const DCTS = 0b0000_0001;
-        ///Delta Data Set Ready
-        const DDSR = 0b0000_0010;
-        ///Trailing Edge Ring Indicator
-        const TERI = 0b0000_0100;
-        ///Delta Data Carrier Detect
-        const DDCD = 0b0000_1000;
-        ///Clear To Send
-        const CTS = 0b0001_0000;
-        ///Data Set Ready
-        const DSR = 0b0010_0000;
-        ///Ring Indicator
-        const RI = 0b0100_0000;
-        ///Carrier Detect
-        const CD = 0b1000_0000;
-    }
-}
+        DCTS OFFSET(0) NUMBITS(1) [],
+        /// Delta Data Set Ready
+        DDSR OFFSET(1) NUMBITS(1) [],
+        /// Trailing Edge Ring Indicator
+        TERI OFFSET(2) NUMBITS(1) [],
+        /// Delta Data Carrier Detect
+        DDCD OFFSET(3) NUMBITS(1) [],
+        /// Clear To Send
+        CTS OFFSET(4) NUMBITS(1) [],
+        /// Data Set Ready
+        DSR OFFSET(5) NUMBITS(1) [],
+        /// Ring Indicator
+        RI OFFSET(6) NUMBITS(1) [],
+        /// Carrier Detect
+        CD OFFSET(7) NUMBITS(1) [],
+    ],
 
-bitflags! {
-    /// FIFO Control Register (bitflags)
-    pub struct FCR: u8 {
-        /// Interrupt trigger level is 1 byte.
-        const INTERRUPT_TRIGGER_LEVEL_1 = 0b0000_0000;
-        /// Interrupt trigger level is 4 or 16 bytes, for 16 or 64 byte FIFO respectively.
-        const INTERRUPT_TRIGGER_LEVEL_4_16 = 0b0100_0000;
-        /// Interrupt trigger level is 8 or 32 bytes, for 16 or 64 byte FIFO respectively.
-        const INTERRUPT_TRIGGER_LEVEL_8_32 = 0b1000_0000;
-        /// Interrupt trigger level is 14 or 56 bytes, for 16 or 64 byte FIFO respectively.
-        const INTERRUPT_TRIGGER_LEVEL_14_56 = 0b1100_0000;
+    /// FIFO Control Register
+    pub FCR [
+        /// Interrupt trigger level.
+        InterruptTriggerLevel OFFSET(6) NUMBITS(2) [
+            /// Interrupt trigger level is 1 byte.
+            Bytes1 = 0,
+            /// Interrupt trigger level is 4 or 16 bytes, for 16 or 64 byte FIFO respectively.
+            Bytes4Or16 = 1,
+            /// Interrupt trigger level is 8 or 32 bytes, for 16 or 64 byte FIFO respectively.
+            Bytes8Or32 = 2,
+            /// Interrupt trigger level is 14 or 56 bytes, for 16 or 64 byte FIFO respectively.
+            Bytes14Or56 = 3,
+        ],
         /// Enable 64 byte FIFO (16750)
-        const ENABLE_64_BYTE = 0b0010_0000;
+        Enable64Byte OFFSET(5) NUMBITS(1) [],
         /// DMA mode select
-        const DMA_MODE = 0b0000_1000;
+        DmaMode OFFSET(3) NUMBITS(1) [],
         /// Clear transmit FIFO
-        const CLEAR_TX = 0b0000_0100;
+        ClearTx OFFSET(2) NUMBITS(1) [],
         /// Clear receive FIFO
-        const CLEAR_RX = 0b0000_0010;
+        ClearRx OFFSET(1) NUMBITS(1) [],
         /// Enable FIFOs.
-        const ENABLE = 0b0000_0001;
-    }
-}
+        Enable OFFSET(0) NUMBITS(1) [],
+    ],
 
-bitflags! {
+    /// Interrupt Identification Register
+    pub IIR [
+        FifoInfo OFFSET(6) NUMBITS(2) [
+            /// No FIFO on chip.
+            None = 0,
+            /// FIFO enabled but not functioning.
+            EnabledNotFunctioning = 2,
+            /// FIFO enabled.
+            Enabled = 3,
+        ],
+        /// 64 byte FIFO enabled (16750 only).
+        Fifo64Byte OFFSET(5) NUMBITS(1) [],
+        InterruptType OFFSET(1) NUMBITS(3) [
+            ModemStatus = 0,
+            TransmitterHoldingRegisterEmpty = 1,
+            ReceivedDataAvailable = 2,
+            ReceiverLineStatus = 3,
+            Timeout = 6,
+        ],
+        /// Interrupt pending flag.
+        InterruptPending OFFSET(0) NUMBITS(1) [],
+    ],
+
     /// Modem Control Register (bitflags)
-    pub struct MCR: u8 {
+    pub MCR [
         /// Autoflow control enabled (16750)
-        const AUTOFLOW_CONTROL_ENABLED = 0b0010_0000;
+        AUTOFLOW_CONTROL_ENABLED OFFSET(5) NUMBITS(1) [],
         /// Loopback mode
-        const LOOPBACK_MODE = 0b0001_0000;
+        LOOPBACK_MODE OFFSET(4) NUMBITS(1) [],
         /// Auxiliary output 2
-        const AUX_OUTPUT_2 = 0b0000_1000;
+        AUX_OUTPUT_2 OFFSET(3) NUMBITS(1) [],
         /// Auxiliary output 1
-        const AUX_OUTPUT_1 = 0b0000_0100;
+        AUX_OUTPUT_1 OFFSET(2) NUMBITS(1) [],
         /// Request to Send
-        const RTS = 0b0000_0010;
+        RTS OFFSET(1) NUMBITS(1) [],
         /// Data Terminal Ready
-        const DTR = 0b0000_0001;
-    }
-}
+        DTR OFFSET(0) NUMBITS(1) [],
+    ],
+];
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ChipFifoInfo {
@@ -244,11 +243,11 @@ impl<'a> MmioUart8250<'a> {
         self.set_divisor(clock, baud_rate);
 
         // Disable DLAB and set word length 8 bits, no parity, 1 stop bit
-        self.set_lcr(LCR::Parity::None + LCR::STOP_BITS::One + LCR::WORD_LENGTH::Bits8);
+        self.set_lcr(LCR::Parity::No + LCR::STOP_BITS::One + LCR::WORD_LENGTH::Bits8);
         // Enable FIFO
-        self.set_fcr(FCR::ENABLE);
+        self.set_fcr(FCR::Enable::SET);
         // No modem control
-        self.set_mcr(MCR::empty());
+        self.set_mcr(FieldValue::<u8, _>::new(0, 0, 0));
         // Enable received_data_available_interrupt
         self.enable_received_data_available_interrupt();
         // Enable transmitter_holding_register_empty_interrupt
@@ -297,138 +296,130 @@ impl<'a> MmioUart8250<'a> {
         self.disable_divisor_latch_accessible();
     }
 
-    /// Get IER bitflags
-    #[inline]
-    fn ier(&self) -> IER {
-        IER::from_bits_truncate(self.reg.read_ier())
-    }
-
-    /// Set IER via bitflags
-    #[inline]
-    fn set_ier(&self, flag: IER) {
-        self.reg.write_ier(flag.bits())
-    }
-
     /// get whether low power mode (16750) is enabled (IER\[5\])
     pub fn is_low_power_mode_enabled(&self) -> bool {
-        self.ier().contains(IER::LPM)
+        self.reg.ier_dlh.is_set(IER::LPM)
     }
 
     /// enable low power mode (16750) (IER\[5\])
     pub fn enable_low_power_mode(&self) {
-        self.set_ier(self.ier() | IER::LPM)
+        self.reg.ier_dlh.modify(IER::LPM::SET)
     }
 
     /// disable low power mode (16750) (IER\[5\])
     pub fn disable_low_power_mode(&self) {
-        self.set_ier(self.ier() & !IER::LPM)
+        self.reg.ier_dlh.modify(IER::LPM::CLEAR)
     }
 
     /// get whether sleep mode (16750) is enabled (IER\[4\])
     pub fn is_sleep_mode_enabled(&self) -> bool {
-        self.ier().contains(IER::SM)
+        self.reg.ier_dlh.is_set(IER::SM)
     }
 
     /// enable sleep mode (16750) (IER\[4\])
     pub fn enable_sleep_mode(&self) {
-        self.set_ier(self.ier() | IER::SM)
+        self.reg.ier_dlh.modify(IER::SM::SET)
     }
 
     /// disable sleep mode (16750) (IER\[4\])
     pub fn disable_sleep_mode(&self) {
-        self.set_ier(self.ier() & !IER::SM)
+        self.reg.ier_dlh.modify(IER::SM::CLEAR)
     }
 
     /// get whether modem status interrupt is enabled (IER\[3\])
     pub fn is_modem_status_interrupt_enabled(&self) -> bool {
-        self.ier().contains(IER::MSI)
+        self.reg.ier_dlh.is_set(IER::MSI)
     }
 
     /// enable modem status interrupt (IER\[3\])
     pub fn enable_modem_status_interrupt(&self) {
-        self.set_ier(self.ier() | IER::MSI)
+        self.reg.ier_dlh.modify(IER::MSI::SET)
     }
 
     /// disable modem status interrupt (IER\[3\])
     pub fn disable_modem_status_interrupt(&self) {
-        self.set_ier(self.ier() & !IER::MSI)
+        self.reg.ier_dlh.modify(IER::MSI::CLEAR)
     }
 
     /// get whether receiver line status interrupt is enabled (IER\[2\])
     pub fn is_receiver_line_status_interrupt_enabled(&self) -> bool {
-        self.ier().contains(IER::RLSI)
+        self.reg.ier_dlh.is_set(IER::RLSI)
     }
 
     /// enable receiver line status interrupt (IER\[2\])
     pub fn enable_receiver_line_status_interrupt(&self) {
-        self.set_ier(self.ier() | IER::RLSI)
+        self.reg.ier_dlh.modify(IER::RLSI::SET)
     }
 
     /// disable receiver line status interrupt (IER\[2\])
     pub fn disable_receiver_line_status_interrupt(&self) {
-        self.set_ier(self.ier() & !IER::RLSI)
+        self.reg.ier_dlh.modify(IER::RLSI::CLEAR)
     }
 
     /// get whether transmitter holding register empty interrupt is enabled (IER\[1\])
     pub fn is_transmitter_holding_register_empty_interrupt_enabled(&self) -> bool {
-        self.ier().contains(IER::THREI)
+        self.reg.ier_dlh.is_set(IER::THREI)
     }
 
     /// enable transmitter holding register empty interrupt (IER\[1\])
     pub fn enable_transmitter_holding_register_empty_interrupt(&self) {
-        self.set_ier(self.ier() | IER::THREI)
+        self.reg.ier_dlh.modify(IER::THREI::SET)
     }
 
     /// disable transmitter holding register empty interrupt (IER\[1\])
     pub fn disable_transmitter_holding_register_empty_interrupt(&self) {
-        self.set_ier(self.ier() & !IER::THREI)
+        self.reg.ier_dlh.modify(IER::THREI::CLEAR)
     }
 
     /// get whether received data available is enabled (IER\[0\])
     pub fn is_received_data_available_interrupt_enabled(&self) -> bool {
-        self.ier().contains(IER::RDAI)
+        self.reg.ier_dlh.is_set(IER::RDAI)
     }
 
     /// enable received data available (IER\[0\])
     pub fn enable_received_data_available_interrupt(&self) {
-        self.set_ier(self.ier() | IER::RDAI)
+        self.reg.ier_dlh.modify(IER::RDAI::SET);
     }
 
     /// disable received data available (IER\[0\])
     pub fn disable_received_data_available_interrupt(&self) {
-        self.set_ier(self.ier() & !IER::RDAI)
+        self.reg.ier_dlh.modify(IER::RDAI::CLEAR);
     }
 
     /// Read IIR\[7:6\] to get FIFO status
     pub fn read_fifo_status(&self) -> ChipFifoInfo {
-        match self.reg.read_iir() & 0b1100_0000 {
-            0 => ChipFifoInfo::NoFifo,
-            0b0100_0000 => ChipFifoInfo::Reserved,
-            0b1000_0000 => ChipFifoInfo::EnabledNoFunction,
-            0b1100_0000 => ChipFifoInfo::Enabled,
-            _ => panic!("Can't reached"),
+        match self.reg.iir_fcr.read_as_enum(IIR::FifoInfo) {
+            Some(IIR::FifoInfo::Value::None) => ChipFifoInfo::NoFifo,
+            Some(IIR::FifoInfo::Value::EnabledNotFunctioning) => ChipFifoInfo::EnabledNoFunction,
+            Some(IIR::FifoInfo::Value::Enabled) => ChipFifoInfo::Enabled,
+            None => ChipFifoInfo::Reserved,
         }
     }
 
     /// get whether 64 Byte fifo (16750 only) is enabled (IIR\[5\])
     pub fn is_64byte_fifo_enabled(&self) -> bool {
-        self.reg.read_iir() & 0b0010_0000 != 0
+        self.reg.iir_fcr.is_set(IIR::Fifo64Byte)
     }
 
     /// Read IIR\[3:1\] to get interrupt type
     pub fn read_interrupt_type(&self) -> Option<InterruptType> {
-        let iir = self.reg.read_iir() & 0b0000_1111;
-        if iir & 1 != 0 {
+        let iir = self.reg.iir_fcr.extract();
+        if iir.is_set(IIR::InterruptPending) {
             None
         } else {
-            match iir {
-                0b0000 => Some(InterruptType::ModemStatus),
-                0b0010 => Some(InterruptType::TransmitterHoldingRegisterEmpty),
-                0b0100 => Some(InterruptType::ReceivedDataAvailable),
-                0b0110 => Some(InterruptType::ReceiverLineStatus),
-                0b1100 => Some(InterruptType::Timeout),
-                0b1000 | 0b1010 | 0b1110 => Some(InterruptType::Reserved),
-                _ => panic!("Can't reached"),
+            match iir.read_as_enum(IIR::InterruptType) {
+                Some(IIR::InterruptType::Value::ModemStatus) => Some(InterruptType::ModemStatus),
+                Some(IIR::InterruptType::Value::TransmitterHoldingRegisterEmpty) => {
+                    Some(InterruptType::TransmitterHoldingRegisterEmpty)
+                }
+                Some(IIR::InterruptType::Value::ReceivedDataAvailable) => {
+                    Some(InterruptType::ReceivedDataAvailable)
+                }
+                Some(IIR::InterruptType::Value::ReceiverLineStatus) => {
+                    Some(InterruptType::ReceiverLineStatus)
+                }
+                Some(IIR::InterruptType::Value::Timeout) => Some(InterruptType::Timeout),
+                None => Some(InterruptType::Reserved),
             }
         }
     }
@@ -451,7 +442,7 @@ impl<'a> MmioUart8250<'a> {
             .read_as_enum(LCR::Parity)
             .expect("Invalid Parity! Please check your UART.")
         {
-            LCR::Parity::Value::None => Parity::No,
+            LCR::Parity::Value::No => Parity::No,
             LCR::Parity::Value::Odd => Parity::Odd,
             LCR::Parity::Value::Even => Parity::Even,
             LCR::Parity::Value::Mark => Parity::Mark,
@@ -462,7 +453,7 @@ impl<'a> MmioUart8250<'a> {
     /// set parity
     pub fn set_parity(&self, parity: Parity) {
         let parity = match parity {
-            Parity::No => LCR::Parity::None,
+            Parity::No => LCR::Parity::No,
             Parity::Odd => LCR::Parity::Odd,
             Parity::Even => LCR::Parity::Even,
             Parity::Mark => LCR::Parity::Mark,
@@ -475,7 +466,7 @@ impl<'a> MmioUart8250<'a> {
     ///
     /// Simply return a u8 to indicate 1 or 1.5/2 bits
     pub fn get_stop_bit(&self) -> u8 {
-        ((self.reg.read_lcr() & 0b100) >> 2) + 1
+        self.reg.lcr.read(LCR::STOP_BITS) + 1
     }
 
     /// set stop bit, only 1 and 2 can be used as `stop_bit`
@@ -503,8 +494,8 @@ impl<'a> MmioUart8250<'a> {
 
     /// Sets FCR bitflags
     #[inline]
-    pub fn set_fcr(&self, fcr: FCR) {
-        self.reg.write_fcr(fcr.bits())
+    pub fn set_fcr(&self, fcr: FieldValue<u8, FCR::Register>) {
+        self.reg.iir_fcr.write(fcr)
     }
 
     /// Gets LCR bitflags
@@ -521,95 +512,83 @@ impl<'a> MmioUart8250<'a> {
 
     /// Gets MCR bitflags
     #[inline]
-    pub fn mcr(&self) -> MCR {
-        MCR::from_bits_truncate(self.reg.read_mcr())
+    pub fn mcr(&self) -> LocalRegisterCopy<u8, MCR::Register> {
+        self.reg.mcr.extract()
     }
 
     /// Sets MCR bitflags
     #[inline]
-    pub fn set_mcr(&self, mcr: MCR) {
-        self.reg.write_mcr(mcr.bits())
-    }
-
-    /// Get LSR bitflags
-    #[inline]
-    fn lsr(&self) -> LSR {
-        LSR::from_bits_truncate(self.reg.read_lsr())
+    pub fn set_mcr(&self, mcr: FieldValue<u8, MCR::Register>) {
+        self.reg.mcr.write(mcr)
     }
 
     /// get whether there is an error in received FIFO
     pub fn is_received_fifo_error(&self) -> bool {
-        self.lsr().contains(LSR::RFE)
+        self.reg.lsr.is_set(LSR::RFE)
     }
 
     /// Gets whether data holding registers are empty, i.e. the UART has finished transmitting all
     /// the data it has been given.
     pub fn is_data_holding_registers_empty(&self) -> bool {
-        self.lsr().contains(LSR::DHRE)
+        self.reg.lsr.is_set(LSR::DHRE)
     }
 
     /// Gets whether transmitter holding register is empty, i.e. the UART is ready to be given more
     /// data to transmit.
     pub fn is_transmitter_holding_register_empty(&self) -> bool {
-        self.lsr().contains(LSR::THRE)
+        self.reg.lsr.is_set(LSR::THRE)
     }
 
     pub fn is_break_interrupt(&self) -> bool {
-        self.lsr().contains(LSR::BI)
+        self.reg.lsr.is_set(LSR::BI)
     }
 
     pub fn is_framing_error(&self) -> bool {
-        self.lsr().contains(LSR::FE)
+        self.reg.lsr.is_set(LSR::FE)
     }
 
     pub fn is_parity_error(&self) -> bool {
-        self.lsr().contains(LSR::PE)
+        self.reg.lsr.is_set(LSR::PE)
     }
 
     pub fn is_overrun_error(&self) -> bool {
-        self.lsr().contains(LSR::OE)
+        self.reg.lsr.is_set(LSR::OE)
     }
 
     pub fn is_data_ready(&self) -> bool {
-        self.lsr().contains(LSR::DR)
-    }
-
-    /// Get MSR bitflags
-    #[inline]
-    fn msr(&self) -> MSR {
-        MSR::from_bits_truncate(self.reg.read_msr())
+        self.reg.lsr.is_set(LSR::DR)
     }
 
     pub fn is_carrier_detect(&self) -> bool {
-        self.msr().contains(MSR::CD)
+        self.reg.msr.is_set(MSR::CD)
     }
 
     pub fn is_ring_indicator(&self) -> bool {
-        self.msr().contains(MSR::RI)
+        self.reg.msr.is_set(MSR::RI)
     }
 
     pub fn is_data_set_ready(&self) -> bool {
-        self.msr().contains(MSR::DSR)
+        self.reg.msr.is_set(MSR::DSR)
     }
 
     pub fn is_clear_to_send(&self) -> bool {
-        self.msr().contains(MSR::CTS)
+        self.reg.msr.is_set(MSR::CTS)
     }
 
     pub fn is_delta_data_carrier_detect(&self) -> bool {
-        self.msr().contains(MSR::DDCD)
+        self.reg.msr.is_set(MSR::DDCD)
     }
 
     pub fn is_trailing_edge_ring_indicator(&self) -> bool {
-        self.msr().contains(MSR::TERI)
+        self.reg.msr.is_set(MSR::TERI)
     }
 
     pub fn is_delta_data_set_ready(&self) -> bool {
-        self.msr().contains(MSR::DDSR)
+        self.reg.msr.is_set(MSR::DDSR)
     }
 
     pub fn is_delta_clear_to_send(&self) -> bool {
-        self.msr().contains(MSR::DCTS)
+        self.reg.msr.is_set(MSR::DCTS)
     }
 }
 

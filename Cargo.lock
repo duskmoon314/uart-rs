@@ -43,7 +43,6 @@ checksum = "4ee8fba06c1f4d0b396ef61a54530bb6b28f0dc61c38bc8bc5a5a48161e6282e"
 name = "uart8250"
 version = "0.5.0"
 dependencies = [
- "bitflags",
  "embedded-hal",
  "nb 1.0.0",
  "tock-registers",
