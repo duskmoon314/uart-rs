@@ -131,11 +131,15 @@ impl<'a> MmioUart8250<'a> {
     /// | 115200    | 1                    | $00                     | $01                    |
     #[inline]
     pub fn set_divisor(&self, clock: usize, baud_rate: usize) {
-        self.enable_divisor_latch_accessible();
+        // Enable DLAB.
+        self.reg.lcr.modify(LCR::DLAB::SET);
+
         let divisor = clock / (16 * baud_rate);
         self.reg.thr_rbr_dll.set(divisor as u8);
         self.reg.ier_dlh.set((divisor >> 8) as u8);
-        self.disable_divisor_latch_accessible();
+
+        // Disable DLAB.
+        self.reg.lcr.modify(LCR::DLAB::CLEAR);
     }
 
     /// get whether low power mode (16750) is enabled (IER\[5\])
@@ -249,16 +253,6 @@ impl<'a> MmioUart8250<'a> {
                     .unwrap_or(IIR::InterruptType::Value::Reserved),
             )
         }
-    }
-
-    /// enable DLAB
-    fn enable_divisor_latch_accessible(&self) {
-        self.reg.lcr.modify(LCR::DLAB::SET)
-    }
-
-    /// disable DLAB
-    fn disable_divisor_latch_accessible(&self) {
-        self.reg.lcr.modify(LCR::DLAB::CLEAR)
     }
 
     /// get parity of used data protocol
