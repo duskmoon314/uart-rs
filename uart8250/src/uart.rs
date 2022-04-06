@@ -331,11 +331,6 @@ impl<'a> MmioUart8250<'a> {
         self.ier().contains(IER::LPM)
     }
 
-    /// toggle low power mode (16750) (IER\[5\])
-    pub fn toggle_low_power_mode(&self) {
-        self.set_ier(self.ier() ^ IER::LPM)
-    }
-
     /// enable low power mode (16750) (IER\[5\])
     pub fn enable_low_power_mode(&self) {
         self.set_ier(self.ier() | IER::LPM)
@@ -349,11 +344,6 @@ impl<'a> MmioUart8250<'a> {
     /// get whether sleep mode (16750) is enabled (IER\[4\])
     pub fn is_sleep_mode_enabled(&self) -> bool {
         self.ier().contains(IER::SM)
-    }
-
-    /// toggle sleep mode (16750) (IER\[4\])
-    pub fn toggle_sleep_mode(&self) {
-        self.set_ier(self.ier() ^ IER::SM)
     }
 
     /// enable sleep mode (16750) (IER\[4\])
@@ -371,11 +361,6 @@ impl<'a> MmioUart8250<'a> {
         self.ier().contains(IER::MSI)
     }
 
-    /// toggle modem status interrupt (IER\[3\])
-    pub fn toggle_modem_status_interrupt(&self) {
-        self.set_ier(self.ier() ^ IER::MSI)
-    }
-
     /// enable modem status interrupt (IER\[3\])
     pub fn enable_modem_status_interrupt(&self) {
         self.set_ier(self.ier() | IER::MSI)
@@ -389,11 +374,6 @@ impl<'a> MmioUart8250<'a> {
     /// get whether receiver line status interrupt is enabled (IER\[2\])
     pub fn is_receiver_line_status_interrupt_enabled(&self) -> bool {
         self.ier().contains(IER::RLSI)
-    }
-
-    /// toggle receiver line status interrupt (IER\[2\])
-    pub fn toggle_receiver_line_status_interrupt(&self) {
-        self.set_ier(self.ier() ^ IER::RLSI)
     }
 
     /// enable receiver line status interrupt (IER\[2\])
@@ -411,11 +391,6 @@ impl<'a> MmioUart8250<'a> {
         self.ier().contains(IER::THREI)
     }
 
-    /// toggle transmitter holding register empty interrupt (IER\[1\])
-    pub fn toggle_transmitter_holding_register_empty_interrupt(&self) {
-        self.set_ier(self.ier() ^ IER::THREI)
-    }
-
     /// enable transmitter holding register empty interrupt (IER\[1\])
     pub fn enable_transmitter_holding_register_empty_interrupt(&self) {
         self.set_ier(self.ier() | IER::THREI)
@@ -429,11 +404,6 @@ impl<'a> MmioUart8250<'a> {
     /// get whether received data available is enabled (IER\[0\])
     pub fn is_received_data_available_interrupt_enabled(&self) -> bool {
         self.ier().contains(IER::RDAI)
-    }
-
-    /// toggle received data available (IER\[0\])
-    pub fn toggle_received_data_available_interrupt(&self) {
-        self.set_ier(self.ier() ^ IER::RDAI)
     }
 
     /// enable received data available (IER\[0\])
