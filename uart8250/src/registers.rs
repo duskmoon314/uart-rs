@@ -110,7 +110,7 @@ register_bitfields![
         BI OFFSET(4) NUMBITS(1) [],
         /// Transmitter Holding Register Empty
         THRE OFFSET(5) NUMBITS(1) [],
-        /// Data Holding Regiters Empty
+        /// Data Holding Registers Empty
         DHRE OFFSET(6) NUMBITS(1) [],
         /// Error in Received FIFO
         RFE OFFSET(7) NUMBITS(1) [],
