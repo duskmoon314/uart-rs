@@ -4,10 +4,9 @@ use core::fmt::{self, Display, Formatter};
 use tock_registers::{
     fields::FieldValue,
     interfaces::{ReadWriteable, Readable, Writeable},
-    LocalRegisterCopy,
 };
 
-use crate::registers::{Registers, FCR, IER, IIR, LCR, LSR, MCR, MSR};
+use crate::registers::{Registers, FCR, IER, IIR, LCR, LSR, MSR};
 
 pub type ChipFifoInfo = IIR::FifoInfo::Value;
 pub type InterruptType = IIR::InterruptType::Value;
@@ -57,11 +56,13 @@ impl<'a> MmioUart8250<'a> {
         self.set_divisor(clock, baud_rate);
 
         // Disable DLAB and set word length 8 bits, no parity, 1 stop bit
-        self.set_lcr(LCR::Parity::No + LCR::STOP_BITS::One + LCR::WORD_LENGTH::Bits8);
+        self.reg
+            .lcr
+            .write(LCR::Parity::No + LCR::STOP_BITS::One + LCR::WORD_LENGTH::Bits8);
         // Enable FIFO
-        self.set_fcr(FCR::Enable::SET);
+        self.reg.iir_fcr.write(FCR::Enable::SET);
         // No modem control
-        self.set_mcr(FieldValue::<u8, _>::new(0, 0, 0));
+        self.reg.mcr.write(FieldValue::<u8, _>::new(0, 0, 0));
         // Enable received_data_available_interrupt
         self.enable_received_data_available_interrupt();
         // Enable transmitter_holding_register_empty_interrupt
@@ -84,7 +85,7 @@ impl<'a> MmioUart8250<'a> {
     /// Returns `None` when data is not ready (RBR\[0\] != 1)
     pub fn read_byte(&self) -> Option<u8> {
         if self.is_data_ready() {
-            Some(self.reg.read_rbr())
+            Some(self.reg.thr_rbr_dll.get())
         } else {
             None
         }
@@ -93,20 +94,47 @@ impl<'a> MmioUart8250<'a> {
     /// Writes a byte to the UART.
     pub fn write_byte(&self, byte: u8) -> Result<(), TransmitError> {
         if self.is_transmitter_holding_register_empty() {
-            self.reg.write_thr(byte);
+            self.reg.thr_rbr_dll.set(byte);
             Ok(())
         } else {
             Err(TransmitError::BufferFull)
         }
     }
 
-    /// Set divisor latch according to clock and baud_rate, then set DLAB to false
+    /// Sets DLAB to true, sets divisor latch according to clock and baud_rate, then sets DLAB to
+    /// false.
+    ///
+    /// > ## Divisor Latch Bytes
+    /// >
+    /// > Offset: +0 and +1 . The Divisor Latch Bytes are what control the baud rate of the modem. As you might guess from the name of this register, it is used as a divisor to determine what baud rate that the chip is going to be transmitting at.
+    ///
+    /// Used clock 1.8432 MHz as example, first divide 16 and get 115200. Then use the formula to get divisor latch value:
+    ///
+    /// *DivisorLatchValue = 115200 / BaudRate*
+    ///
+    /// This gives the following table:
+    ///
+    /// | Baud Rate | Divisor (in decimal) | Divisor Latch High Byte | Divisor Latch Low Byte |
+    /// | --------- | -------------------- | ----------------------- | ---------------------- |
+    /// | 50        | 2304                 | $09                     | $00                    |
+    /// | 110       | 1047                 | $04                     | $17                    |
+    /// | 220       | 524                  | $02                     | $0C                    |
+    /// | 300       | 384                  | $01                     | $80                    |
+    /// | 600       | 192                  | $00                     | $C0                    |
+    /// | 1200      | 96                   | $00                     | $60                    |
+    /// | 2400      | 48                   | $00                     | $30                    |
+    /// | 4800      | 24                   | $00                     | $18                    |
+    /// | 9600      | 12                   | $00                     | $0C                    |
+    /// | 19200     | 6                    | $00                     | $06                    |
+    /// | 38400     | 3                    | $00                     | $03                    |
+    /// | 57600     | 2                    | $00                     | $02                    |
+    /// | 115200    | 1                    | $00                     | $01                    |
     #[inline]
     pub fn set_divisor(&self, clock: usize, baud_rate: usize) {
         self.enable_divisor_latch_accessible();
         let divisor = clock / (16 * baud_rate);
-        self.reg.write_dll(divisor as u8);
-        self.reg.write_dlh((divisor >> 8) as u8);
+        self.reg.thr_rbr_dll.set(divisor as u8);
+        self.reg.ier_dlh.set((divisor >> 8) as u8);
         self.disable_divisor_latch_accessible();
     }
 
@@ -274,36 +302,6 @@ impl<'a> MmioUart8250<'a> {
         } else {
             panic!("Invalid word length")
         }
-    }
-
-    /// Sets FCR bitflags
-    #[inline]
-    pub fn set_fcr(&self, fcr: FieldValue<u8, FCR::Register>) {
-        self.reg.iir_fcr.write(fcr)
-    }
-
-    /// Gets LCR bitflags
-    #[inline]
-    pub fn lcr(&self) -> LocalRegisterCopy<u8, LCR::Register> {
-        self.reg.lcr.extract()
-    }
-
-    /// Sets LCR bitflags
-    #[inline]
-    pub fn set_lcr(&self, lcr: FieldValue<u8, LCR::Register>) {
-        self.reg.lcr.write(lcr)
-    }
-
-    /// Gets MCR bitflags
-    #[inline]
-    pub fn mcr(&self) -> LocalRegisterCopy<u8, MCR::Register> {
-        self.reg.mcr.extract()
-    }
-
-    /// Sets MCR bitflags
-    #[inline]
-    pub fn set_mcr(&self, mcr: FieldValue<u8, MCR::Register>) {
-        self.reg.mcr.write(mcr)
     }
 
     /// get whether there is an error in received FIFO
