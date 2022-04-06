@@ -137,6 +137,8 @@ register_bitfields![
         FifoInfo OFFSET(6) NUMBITS(2) [
             /// No FIFO on chip.
             None = 0,
+            /// Reserved value.
+            Reserved = 1,
             /// FIFO enabled but not functioning.
             EnabledNotFunctioning = 2,
             /// FIFO enabled.
@@ -149,6 +151,7 @@ register_bitfields![
             TransmitterHoldingRegisterEmpty = 1,
             ReceivedDataAvailable = 2,
             ReceiverLineStatus = 3,
+            Reserved = 4,
             Timeout = 6,
         ],
         /// Interrupt pending flag.
@@ -172,32 +175,9 @@ register_bitfields![
     ],
 ];
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum ChipFifoInfo {
-    NoFifo,
-    Reserved,
-    EnabledNoFunction,
-    Enabled,
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum InterruptType {
-    ModemStatus,
-    TransmitterHoldingRegisterEmpty,
-    ReceivedDataAvailable,
-    ReceiverLineStatus,
-    Timeout,
-    Reserved,
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum Parity {
-    No,
-    Odd,
-    Even,
-    Mark,
-    Space,
-}
+pub type ChipFifoInfo = IIR::FifoInfo::Value;
+pub type InterruptType = IIR::InterruptType::Value;
+pub type Parity = LCR::Parity::Value;
 
 /// An error encountered which trying to transmit data.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -388,12 +368,7 @@ impl<'a> MmioUart8250<'a> {
 
     /// Read IIR\[7:6\] to get FIFO status
     pub fn read_fifo_status(&self) -> ChipFifoInfo {
-        match self.reg.iir_fcr.read_as_enum(IIR::FifoInfo) {
-            Some(IIR::FifoInfo::Value::None) => ChipFifoInfo::NoFifo,
-            Some(IIR::FifoInfo::Value::EnabledNotFunctioning) => ChipFifoInfo::EnabledNoFunction,
-            Some(IIR::FifoInfo::Value::Enabled) => ChipFifoInfo::Enabled,
-            None => ChipFifoInfo::Reserved,
-        }
+        self.reg.iir_fcr.read_as_enum(IIR::FifoInfo).unwrap()
     }
 
     /// get whether 64 Byte fifo (16750 only) is enabled (IIR\[5\])
@@ -407,20 +382,10 @@ impl<'a> MmioUart8250<'a> {
         if iir.is_set(IIR::InterruptPending) {
             None
         } else {
-            match iir.read_as_enum(IIR::InterruptType) {
-                Some(IIR::InterruptType::Value::ModemStatus) => Some(InterruptType::ModemStatus),
-                Some(IIR::InterruptType::Value::TransmitterHoldingRegisterEmpty) => {
-                    Some(InterruptType::TransmitterHoldingRegisterEmpty)
-                }
-                Some(IIR::InterruptType::Value::ReceivedDataAvailable) => {
-                    Some(InterruptType::ReceivedDataAvailable)
-                }
-                Some(IIR::InterruptType::Value::ReceiverLineStatus) => {
-                    Some(InterruptType::ReceiverLineStatus)
-                }
-                Some(IIR::InterruptType::Value::Timeout) => Some(InterruptType::Timeout),
-                None => Some(InterruptType::Reserved),
-            }
+            Some(
+                iir.read_as_enum(IIR::InterruptType)
+                    .unwrap_or(IIR::InterruptType::Value::Reserved),
+            )
         }
     }
 
@@ -436,30 +401,15 @@ impl<'a> MmioUart8250<'a> {
 
     /// get parity of used data protocol
     pub fn get_parity(&self) -> Parity {
-        match self
-            .reg
+        self.reg
             .lcr
             .read_as_enum(LCR::Parity)
             .expect("Invalid Parity! Please check your UART.")
-        {
-            LCR::Parity::Value::No => Parity::No,
-            LCR::Parity::Value::Odd => Parity::Odd,
-            LCR::Parity::Value::Even => Parity::Even,
-            LCR::Parity::Value::Mark => Parity::Mark,
-            LCR::Parity::Value::Space => Parity::Space,
-        }
     }
 
     /// set parity
     pub fn set_parity(&self, parity: Parity) {
-        let parity = match parity {
-            Parity::No => LCR::Parity::No,
-            Parity::Odd => LCR::Parity::Odd,
-            Parity::Even => LCR::Parity::Even,
-            Parity::Mark => LCR::Parity::Mark,
-            Parity::Space => LCR::Parity::Space,
-        };
-        self.reg.lcr.modify(parity);
+        self.reg.lcr.modify(LCR::Parity.val(parity as u8));
     }
 
     /// get stop bit of used data protocol
