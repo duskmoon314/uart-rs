@@ -560,18 +560,13 @@ impl<'a> MmioUart8250<'a> {
         unsafe { self.reg.lcr.write(value) }
     }
 
-    /// get whether DLAB is enabled
-    pub fn is_divisor_latch_accessible(&self) -> bool {
-        self.reg.lcr.read() & 0b1000_0000 != 0
-    }
-
     /// enable DLAB
-    pub fn enable_divisor_latch_accessible(&self) {
+    fn enable_divisor_latch_accessible(&self) {
         unsafe { self.reg.lcr.modify(|v| v | 0b1000_0000) }
     }
 
     /// disable DLAB
-    pub fn disable_divisor_latch_accessible(&self) {
+    fn disable_divisor_latch_accessible(&self) {
         unsafe { self.reg.lcr.modify(|v| v & !0b1000_0000) }
     }
 
@@ -800,7 +795,6 @@ mod tests {
         assert!(matches!(uart.get_parity(), Parity::No));
         assert_eq!(uart.get_stop_bit(), 1);
         assert_eq!(uart.get_word_length(), 8);
-        assert_eq!(uart.is_divisor_latch_accessible(), false);
     }
 
     #[test]
