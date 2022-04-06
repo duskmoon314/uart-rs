@@ -102,7 +102,13 @@ pub struct MmioUart8250<'a> {
 
 impl<'a> MmioUart8250<'a> {
     /// Creates a new UART.
-    pub fn new(base_address: usize) -> Self {
+    ///
+    /// # Safety
+    ///
+    /// The given base address must point to the 8 MMIO control registers of an appropriate UART
+    /// device, which must be mapped into the address space of the process as device memory and not
+    /// have any other aliases.
+    pub unsafe fn new(base_address: usize) -> Self {
         Self {
             reg: Registers::from_base_address(base_address),
         }
@@ -128,7 +134,13 @@ impl<'a> MmioUart8250<'a> {
     }
 
     /// Sets a new base address for the UART.
-    pub fn set_base_address(&mut self, base_address: usize) {
+    ///
+    /// # Safety
+    ///
+    /// The given base address must point to the 8 MMIO control registers of an appropriate UART
+    /// device, which must be mapped into the address space of the process as device memory and not
+    /// have any other aliases.
+    pub unsafe fn set_base_address(&mut self, base_address: usize) {
         self.reg = Registers::from_base_address(base_address);
     }
 
@@ -781,7 +793,7 @@ mod tests {
         // Create a fake UART using an in-memory buffer, and check that it is initialised as
         // expected.
         let mut fake_registers: [u8; 8] = [0xff; 8];
-        let uart = MmioUart8250::new(&mut fake_registers as *mut u8 as usize);
+        let uart = unsafe { MmioUart8250::new(&mut fake_registers as *mut u8 as usize) };
 
         uart.init(11_059_200, 115200);
 
@@ -794,7 +806,7 @@ mod tests {
     #[test]
     fn write() {
         let mut fake_registers: [u8; 8] = [0; 8];
-        let uart = MmioUart8250::new(&mut fake_registers as *mut u8 as usize);
+        let uart = unsafe { MmioUart8250::new(&mut fake_registers as *mut u8 as usize) };
 
         uart.write_byte(0x42);
 
@@ -804,7 +816,7 @@ mod tests {
     #[test]
     fn read() {
         let mut fake_registers: [u8; 8] = [0; 8];
-        let uart = MmioUart8250::new(&mut fake_registers as *mut u8 as usize);
+        let uart = unsafe { MmioUart8250::new(&mut fake_registers as *mut u8 as usize) };
 
         // First try to read when there is nothing available.
         assert_eq!(uart.read_byte(), None);
