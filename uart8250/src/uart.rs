@@ -1,4 +1,6 @@
 use bitflags::bitflags;
+#[cfg(feature = "embedded")]
+use core::convert::Infallible;
 use core::fmt::{self, Display, Formatter};
 
 use crate::registers::Registers;
@@ -675,6 +677,38 @@ impl<'a> fmt::Write for MmioUart8250<'a> {
             while self.write_byte(*c) == Err(TransmitError::BufferFull) {}
         }
         Ok(())
+    }
+}
+
+#[cfg(feature = "embedded")]
+impl embedded_hal::serial::Read<u8> for MmioUart8250<'_> {
+    type Error = Infallible;
+
+    fn read(&mut self) -> nb::Result<u8, Self::Error> {
+        if let Some(byte) = self.read_byte() {
+            Ok(byte)
+        } else {
+            Err(nb::Error::WouldBlock)
+        }
+    }
+}
+
+#[cfg(feature = "embedded")]
+impl embedded_hal::serial::Write<u8> for MmioUart8250<'_> {
+    type Error = Infallible;
+
+    fn write(&mut self, byte: u8) -> nb::Result<(), Self::Error> {
+        self.write_byte(byte).map_err(|e| match e {
+            TransmitError::BufferFull => nb::Error::WouldBlock,
+        })
+    }
+
+    fn flush(&mut self) -> nb::Result<(), Self::Error> {
+        if self.is_data_holding_registers_empty() {
+            Ok(())
+        } else {
+            Err(nb::Error::WouldBlock)
+        }
     }
 }
 
