@@ -8,7 +8,7 @@ This crate provides a struct with many methods to operate an 8250 UART.
 
 #![no_std]
 
-pub mod registers;
+mod registers;
 mod uart;
 
-pub use uart::{ChipFifoInfo, InterruptType, MmioUart8250, Parity, IER, LSR, MSR};
+pub use uart::{ChipFifoInfo, InterruptType, MmioUart8250, Parity};

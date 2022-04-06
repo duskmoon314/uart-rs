@@ -232,7 +232,34 @@ impl<'a> MmioUart8250<'a> {
         unsafe { self.reg.ier_dlh.write(value) }
     }
 
-    /// Set divisor latch according to clock and baud_rate, then set DLAB to false
+    /// Sets DLAB to true, sets divisor latch according to clock and baud_rate, then sets DLAB to
+    /// false.
+    ///
+    /// > ## Divisor Latch Bytes
+    /// >
+    /// > Offset: +0 and +1 . The Divisor Latch Bytes are what control the baud rate of the modem. As you might guess from the name of this register, it is used as a divisor to determine what baud rate that the chip is going to be transmitting at.
+    ///
+    /// Used clock 1.8432 MHz as example, first divide 16 and get 115200. Then use the formula to get divisor latch value:
+    ///
+    /// *DivisorLatchValue = 115200 / BaudRate*
+    ///
+    /// This gives the following table:
+    ///
+    /// | Baud Rate | Divisor (in decimal) | Divisor Latch High Byte | Divisor Latch Low Byte |
+    /// | --------- | -------------------- | ----------------------- | ---------------------- |
+    /// | 50        | 2304                 | $09                     | $00                    |
+    /// | 110       | 1047                 | $04                     | $17                    |
+    /// | 220       | 524                  | $02                     | $0C                    |
+    /// | 300       | 384                  | $01                     | $80                    |
+    /// | 600       | 192                  | $00                     | $C0                    |
+    /// | 1200      | 96                   | $00                     | $60                    |
+    /// | 2400      | 48                   | $00                     | $30                    |
+    /// | 4800      | 24                   | $00                     | $18                    |
+    /// | 9600      | 12                   | $00                     | $0C                    |
+    /// | 19200     | 6                    | $00                     | $06                    |
+    /// | 38400     | 3                    | $00                     | $03                    |
+    /// | 57600     | 2                    | $00                     | $02                    |
+    /// | 115200    | 1                    | $00                     | $01                    |
     #[inline]
     pub fn set_divisor(&self, clock: usize, baud_rate: usize) {
         self.enable_divisor_latch_accessible();
@@ -509,59 +536,21 @@ impl<'a> MmioUart8250<'a> {
     /// > | 1     | Clear Receive FIFO          |       |                                   |                         |
     /// > | 0     | Enable FIFOs                |       |                                   |                         |
     #[inline]
-    pub fn write_fcr(&self, value: u8) {
+    fn write_fcr(&self, value: u8) {
         unsafe { self.reg.iir_fcr.write(value) }
-    }
-
-    /// Read LCR (offset + 3)
-    ///
-    /// Read Line Control Register to get the data protocol and DLAB
-    ///
-    /// > ## Line Control Register
-    /// >
-    /// > Offset: +3 . This register has two major purposes:
-    /// >
-    /// > - Setting the Divisor Latch Access Bit (DLAB), allowing you to set the values of the Divisor Latch Bytes.
-    /// > - Setting the bit patterns that will be used for both receiving and transmitting the serial data. In other words, the serial data protocol you will be using (8-1-None, 5-2-Even, etc.).
-    /// >
-    /// > | Bit      | Notes                    |                              |             |               |
-    /// > | -------- | ------------------------ | ---------------------------- | ----------- | ------------- |
-    /// > | 7        | Divisor Latch Access Bit |                              |             |               |
-    /// > | 6        | Set Break Enable         |                              |             |               |
-    /// > | 3, 4 & 5 | Bit 5                    | Bit 4                        | Bit 3       | Parity Select |
-    /// > |          | 0                        | 0                            | 0           | No Parity     |
-    /// > |          | 0                        | 0                            | 1           | Odd Parity    |
-    /// > |          | 0                        | 1                            | 1           | Even Parity   |
-    /// > |          | 1                        | 0                            | 1           | Mark          |
-    /// > |          | 1                        | 1                            | 1           | Space         |
-    /// > | 2        | 0                        | One Stop Bit                 |             |               |
-    /// > |          | 1                        | 1.5 Stop Bits or 2 Stop Bits |             |               |
-    /// > | 0 & 1    | Bit 1                    | Bit 0                        | Word Length |               |
-    /// > |          | 0                        | 0                            | 5 Bits      |               |
-    /// > |          | 0                        | 1                            | 6 Bits      |               |
-    /// > |          | 1                        | 0                            | 7 Bits      |               |
-    /// > |          | 1                        | 1                            | 8 Bits      |               |
-    #[inline]
-    pub fn read_lcr(&self) -> u8 {
-        self.reg.lcr.read()
     }
 
     /// Write LCR (offset + 3)
     ///
     /// Write Line Control Register to set DLAB and the serial data protocol
     #[inline]
-    pub fn write_lcr(&self, value: u8) {
+    fn write_lcr(&self, value: u8) {
         unsafe { self.reg.lcr.write(value) }
     }
 
     /// get whether DLAB is enabled
     pub fn is_divisor_latch_accessible(&self) -> bool {
         self.reg.lcr.read() & 0b1000_0000 != 0
-    }
-
-    /// toggle DLAB
-    pub fn toggle_divisor_latch_accessible(&self) {
-        unsafe { self.reg.lcr.modify(|v| v ^ 0b1000_0000) }
     }
 
     /// enable DLAB
@@ -627,34 +616,11 @@ impl<'a> MmioUart8250<'a> {
         }
     }
 
-    /// Read MCR (offset + 4)
-    ///
-    /// Read Modem Control Register to get how flow is controlled
-    ///
-    /// > ## Modem Control Register
-    /// >
-    /// > Offset: +4 . This register allows you to do "hardware" flow control, under software control. Or in a more practical manner, it allows direct manipulation of four different wires on the UART that you can set to any series of independent logical states, and be able to offer control of the modem. It should also be noted that most UARTs need Auxiliary Output 2 set to a logical "1" to enable interrupts.
-    /// >
-    /// > | Bit | Notes                            |
-    /// > | --- | -------------------------------- |
-    /// > | 7   | Reserved                         |
-    /// > | 6   | Reserved                         |
-    /// > | 5   | Autoflow Control Enabled (16750) |
-    /// > | 4   | Loopback Mode                    |
-    /// > | 3   | Auxiliary Output 2               |
-    /// > | 2   | Auxiliary Output 1               |
-    /// > | 1   | Request To Send                  |
-    /// > | 0   | Data Terminal Ready              |
-    #[inline]
-    pub fn read_mcr(&self) -> u8 {
-        self.reg.mcr.read()
-    }
-
     /// Write MCR (offset + 4)
     ///
     /// Write Modem Control Register to control flow
     #[inline]
-    pub fn write_mcr(&self, value: u8) {
+    fn write_mcr(&self, value: u8) {
         unsafe { self.reg.mcr.write(value) }
     }
 
@@ -675,13 +641,13 @@ impl<'a> MmioUart8250<'a> {
     /// > | 1   | Overrun Error                      |
     /// > | 0   | Data Ready                         |
     #[inline]
-    pub fn read_lsr(&self) -> u8 {
+    fn read_lsr(&self) -> u8 {
         self.reg.lsr.read()
     }
 
     /// Get LSR bitflags
     #[inline]
-    pub fn lsr(&self) -> LSR {
+    fn lsr(&self) -> LSR {
         LSR::from_bits_truncate(self.read_lsr())
     }
 
@@ -737,13 +703,13 @@ impl<'a> MmioUart8250<'a> {
     /// > | 1   | Delta Data Set Ready         |
     /// > | 0   | Delta Clear To Send          |
     #[inline]
-    pub fn read_msr(&self) -> u8 {
+    fn read_msr(&self) -> u8 {
         self.reg.msr.read()
     }
 
     /// Get MSR bitflags
     #[inline]
-    pub fn msr(&self) -> MSR {
+    fn msr(&self) -> MSR {
         MSR::from_bits_truncate(self.read_msr())
     }
 
