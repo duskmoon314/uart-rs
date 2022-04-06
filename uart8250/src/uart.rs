@@ -112,7 +112,7 @@ impl<'a> MmioUart8250<'a> {
     ///
     /// More customised initialisation can be done using other methods below.
     pub fn init(&self, clock: usize, baud_rate: usize) {
-        // Enable DLAB and Set divisor
+        // Enable DLAB and set divisor
         self.set_divisor(clock, baud_rate);
 
         // Disable DLAB and set word length 8 bits, no parity, 1 stop bit
@@ -766,5 +766,53 @@ impl<'a> fmt::Write for MmioUart8250<'a> {
             self.write_thr(*c);
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // These tests treat normal memory as device memory, which is not necessarily guaranteed to
+    // work, but it seems to for now.
+
+    #[test]
+    fn initialise() {
+        // Create a fake UART using an in-memory buffer, and check that it is initialised as
+        // expected.
+        let mut fake_registers: [u8; 8] = [0xff; 8];
+        let uart = MmioUart8250::new(&mut fake_registers as *mut u8 as usize);
+
+        uart.init(11_059_200, 115200);
+
+        assert!(matches!(uart.get_parity(), Parity::No));
+        assert_eq!(uart.get_stop_bit(), 1);
+        assert_eq!(uart.get_word_length(), 8);
+        assert_eq!(uart.is_divisor_latch_accessible(), false);
+    }
+
+    #[test]
+    fn write() {
+        let mut fake_registers: [u8; 8] = [0; 8];
+        let uart = MmioUart8250::new(&mut fake_registers as *mut u8 as usize);
+
+        uart.write_byte(0x42);
+
+        assert_eq!(fake_registers[0], 0x42);
+    }
+
+    #[test]
+    fn read() {
+        let mut fake_registers: [u8; 8] = [0; 8];
+        let uart = MmioUart8250::new(&mut fake_registers as *mut u8 as usize);
+
+        // First try to read when there is nothing available.
+        assert_eq!(uart.read_byte(), None);
+
+        // Set the UART up to have a byte available to read and read it.
+        fake_registers[0] = 0xab;
+        fake_registers[5] = 0b0000_0001;
+
+        assert_eq!(uart.read_byte(), Some(0xab));
     }
 }
