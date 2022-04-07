@@ -174,7 +174,7 @@ impl<'a> MmioUart8250<'a> {
     /// >
     /// > If the receive buffer is occupied or the FIFO is full, the incoming data is discarded and the Receiver Line Status interrupt is written to the IIR register. The Overrun Error bit is also set in the Line Status Register.
     #[inline]
-    pub fn write_thr(&self, value: u8) {
+    fn write_thr(&self, value: u8) {
         unsafe { self.reg.thr_rbr_dll.write(value) }
     }
 
@@ -182,41 +182,7 @@ impl<'a> MmioUart8250<'a> {
     ///
     /// Read Receiver Buffer to get data
     #[inline]
-    pub fn read_rbr(&self) -> u8 {
-        self.reg.thr_rbr_dll.read()
-    }
-
-    /// read DLL (offset + 0)
-    ///
-    /// get divisor latch low byte in the register
-    ///
-    /// > ## Divisor Latch Bytes
-    /// >
-    /// > Offset: +0 and +1 . The Divisor Latch Bytes are what control the baud rate of the modem. As you might guess from the name of this register, it is used as a divisor to determine what baud rate that the chip is going to be transmitting at.
-    ///
-    /// Used clock 1.8432 MHz as example, first divide 16 and get 115200. Then use the formula to get divisor latch value:
-    ///
-    /// *DivisorLatchValue = 115200 / BaudRate*
-    ///
-    /// This gives the following table:
-    ///
-    /// | Baud Rate | Divisor (in decimal) | Divisor Latch High Byte | Divisor Latch Low Byte |
-    /// | --------- | -------------------- | ----------------------- | ---------------------- |
-    /// | 50        | 2304                 | $09                     | $00                    |
-    /// | 110       | 1047                 | $04                     | $17                    |
-    /// | 220       | 524                  | $02                     | $0C                    |
-    /// | 300       | 384                  | $01                     | $80                    |
-    /// | 600       | 192                  | $00                     | $C0                    |
-    /// | 1200      | 96                   | $00                     | $60                    |
-    /// | 2400      | 48                   | $00                     | $30                    |
-    /// | 4800      | 24                   | $00                     | $18                    |
-    /// | 9600      | 12                   | $00                     | $0C                    |
-    /// | 19200     | 6                    | $00                     | $06                    |
-    /// | 38400     | 3                    | $00                     | $03                    |
-    /// | 57600     | 2                    | $00                     | $02                    |
-    /// | 115200    | 1                    | $00                     | $01                    |
-    #[inline]
-    pub fn read_dll(&self) -> u8 {
+    fn read_rbr(&self) -> u8 {
         self.reg.thr_rbr_dll.read()
     }
 
@@ -224,23 +190,15 @@ impl<'a> MmioUart8250<'a> {
     ///
     /// set divisor latch low byte in the register
     #[inline]
-    pub fn write_dll(&self, value: u8) {
+    fn write_dll(&self, value: u8) {
         unsafe { self.reg.thr_rbr_dll.write(value) }
-    }
-
-    /// read DLH (offset + 1)
-    ///
-    /// get divisor latch high byte in the register
-    #[inline]
-    pub fn read_dlh(&self) -> u8 {
-        self.reg.ier_dlh.read()
     }
 
     /// write DLH (offset + 1)
     ///
     /// set divisor latch high byte in the register
     #[inline]
-    pub fn write_dlh(&self, value: u8) {
+    fn write_dlh(&self, value: u8) {
         unsafe { self.reg.ier_dlh.write(value) }
     }
 
@@ -302,7 +260,7 @@ impl<'a> MmioUart8250<'a> {
     /// > | 1   | Enable Transmitter Holding Register Empty Interrupt |
     /// > | 0   | Enable Received Data Available Interrupt            |
     #[inline]
-    pub fn read_ier(&self) -> u8 {
+    fn read_ier(&self) -> u8 {
         self.reg.ier_dlh.read()
     }
 
@@ -316,13 +274,13 @@ impl<'a> MmioUart8250<'a> {
 
     /// Get IER bitflags
     #[inline]
-    pub fn ier(&self) -> IER {
+    fn ier(&self) -> IER {
         IER::from_bits_truncate(self.read_ier())
     }
 
     /// Set IER via bitflags
     #[inline]
-    pub fn set_ier(&self, flag: IER) {
+    fn set_ier(&self, flag: IER) {
         self.write_ier(flag.bits())
     }
 
@@ -416,43 +374,6 @@ impl<'a> MmioUart8250<'a> {
         self.set_ier(self.ier() & !IER::RDAI)
     }
 
-    /// Read IIR (offset + 2)
-    ///
-    /// > ## Interrupt Identification Register
-    /// >
-    /// > Offset: +2 . This register is to be used to help identify what the unique characteristics of the UART chip that you are using has. This chip has two uses:
-    /// >
-    /// > - Identification of why the UART triggered an interrupt.
-    /// > - Identification of the UART chip itself.
-    /// >
-    /// > Of these, identification of why the interrupt service routine has been invoked is perhaps the most important.
-    /// >
-    /// > The following table explains some of the details of this register, and what each bit on it represents:
-    /// >
-    /// > | Bit        | Notes                             |       |                                   |                                              |                                                                                           |
-    /// > | ---------- | --------------------------------- | ----- | --------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------- |
-    /// > | 7 and 6    | Bit 7                             | Bit 6 |                                   |                                              |                                                                                           |
-    /// > |            | 0                                 | 0     | No FIFO on chip                   |                                              |                                                                                           |
-    /// > |            | 0                                 | 1     | Reserved condition                |                                              |                                                                                           |
-    /// > |            | 1                                 | 0     | FIFO enabled, but not functioning |                                              |                                                                                           |
-    /// > |            | 1                                 | 1     | FIFO enabled                      |                                              |                                                                                           |
-    /// > | 5          | 64 Byte FIFO Enabled (16750 only) |       |                                   |                                              |                                                                                           |
-    /// > | 4          | Reserved                          |       |                                   |                                              |                                                                                           |
-    /// > | 3, 2 and 1 | Bit 3                             | Bit 2 | Bit 1                             |                                              | Reset Method                                                                              |
-    /// > |            | 0                                 | 0     | 0                                 | Modem Status Interrupt                       | Reading Modem Status Register(MSR)                                                        |
-    /// > |            | 0                                 | 0     | 1                                 | Transmitter Holding Register Empty Interrupt | Reading Interrupt Identification Register(IIR) or Writing to Transmit Holding Buffer(THR) |
-    /// > |            | 0                                 | 1     | 0                                 | Received Data Available Interrupt            | Reading Receive Buffer Register(RBR)                                                      |
-    /// > |            | 0                                 | 1     | 1                                 | Receiver Line Status Interrupt               | Reading Line Status Register(LSR)                                                         |
-    /// > |            | 1                                 | 0     | 0                                 | Reserved                                     | N/A                                                                                       |
-    /// > |            | 1                                 | 0     | 1                                 | Reserved                                     | N/A                                                                                       |
-    /// > |            | 1                                 | 1     | 0                                 | Time-out Interrupt Pending (16550 & later)   | Reading Receive Buffer Register(RBR)                                                      |
-    /// > |            | 1                                 | 1     | 1                                 | Reserved                                     | N/A                                                                                       |
-    /// > | 0          | Interrupt Pending Flag            |       |                                   |                                              |                                                                                           |
-    #[inline]
-    pub fn read_iir(&self) -> u8 {
-        self.reg.iir_fcr.read()
-    }
-
     /// Read IIR\[7:6\] to get FIFO status
     pub fn read_fifo_status(&self) -> ChipFifoInfo {
         match self.reg.iir_fcr.read() & 0b1100_0000 {
@@ -471,11 +392,11 @@ impl<'a> MmioUart8250<'a> {
 
     /// Read IIR\[3:1\] to get interrupt type
     pub fn read_interrupt_type(&self) -> Option<InterruptType> {
-        let irq = self.reg.iir_fcr.read() & 0b0000_1111;
-        if irq & 1 != 0 {
+        let iir = self.reg.iir_fcr.read() & 0b0000_1111;
+        if iir & 1 != 0 {
             None
         } else {
-            match irq {
+            match iir {
                 0b0000 => Some(InterruptType::ModemStatus),
                 0b0010 => Some(InterruptType::TransmitterHoldingRegisterEmpty),
                 0b0100 => Some(InterruptType::ReceivedDataAvailable),
@@ -485,15 +406,6 @@ impl<'a> MmioUart8250<'a> {
                 _ => panic!("Can't reached"),
             }
         }
-    }
-
-    /// get whether interrupt is pending (IIR\[0\])
-    ///
-    /// # Safety
-    ///
-    /// read iir will reset THREI, so use read_interrupt_type may be better
-    pub unsafe fn is_interrupt_pending(&self) -> bool {
-        self.reg.iir_fcr.read() & 1 == 0
     }
 
     /// Write FCR (offset + 2) to control FIFO buffers
@@ -740,7 +652,7 @@ impl<'a> MmioUart8250<'a> {
 impl<'a> fmt::Write for MmioUart8250<'a> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         for c in s.as_bytes() {
-            self.write_thr(*c);
+            self.write_byte(*c);
         }
         Ok(())
     }
