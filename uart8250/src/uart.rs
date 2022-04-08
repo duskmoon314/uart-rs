@@ -1,6 +1,5 @@
 use bitflags::bitflags;
-#[cfg(feature = "fmt")]
-use core::fmt;
+use core::fmt::{self, Display, Formatter};
 
 use crate::registers::Registers;
 
@@ -93,6 +92,21 @@ pub enum Parity {
     Space,
 }
 
+/// An error encountered which trying to transmit data.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum TransmitError {
+    /// The transmit buffer is full, try again later.
+    BufferFull,
+}
+
+impl Display for TransmitError {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        f.write_str(match self {
+            Self::BufferFull => "UART buffer full",
+        })
+    }
+}
+
 /// # MMIO version of an 8250 UART.
 ///
 /// **Note** This is only tested on the NS16550 compatible UART used in QEMU 5.0 virt machine of RISC-V.
@@ -156,10 +170,13 @@ impl<'a> MmioUart8250<'a> {
     }
 
     /// Writes a byte to the UART.
-    ///
-    /// TODO: This currently ignores errors.
-    pub fn write_byte(&self, byte: u8) {
-        self.write_thr(byte);
+    pub fn write_byte(&self, byte: u8) -> Result<(), TransmitError> {
+        if self.is_transmitter_holding_register_empty() {
+            self.write_thr(byte);
+            Ok(())
+        } else {
+            Err(TransmitError::BufferFull)
+        }
     }
 
     /// write THR (offset + 0)
@@ -545,12 +562,14 @@ impl<'a> MmioUart8250<'a> {
         self.lsr().contains(LSR::RFE)
     }
 
-    /// get whether data holding registers are empty
+    /// Gets whether data holding registers are empty, i.e. the UART has finished transmitting all
+    /// the data it has been given.
     pub fn is_data_holding_registers_empty(&self) -> bool {
         self.lsr().contains(LSR::DHRE)
     }
 
-    /// get whether transmitter holding register is empty
+    /// Gets whether transmitter holding register is empty, i.e. the UART is ready to be given more
+    /// data to transmit.
     pub fn is_transmitter_holding_register_empty(&self) -> bool {
         self.lsr().contains(LSR::THRE)
     }
@@ -652,7 +671,8 @@ impl<'a> MmioUart8250<'a> {
 impl<'a> fmt::Write for MmioUart8250<'a> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         for c in s.as_bytes() {
-            self.write_byte(*c);
+            // If buffer is full, keep retrying.
+            while self.write_byte(*c) == Err(TransmitError::BufferFull) {}
         }
         Ok(())
     }
@@ -684,8 +704,14 @@ mod tests {
         let mut fake_registers: [u8; 8] = [0; 8];
         let uart = unsafe { MmioUart8250::new(&mut fake_registers as *mut u8 as usize) };
 
-        uart.write_byte(0x42);
+        // Pretend that the transmit buffer is full.
+        fake_registers[5] = 0;
+        assert_eq!(uart.write_byte(0x42), Err(TransmitError::BufferFull));
+        assert_eq!(fake_registers[0], 0);
 
+        // Pretend that the transmit buffer is available.
+        fake_registers[5] = 0b0010_0000;
+        assert_eq!(uart.write_byte(0x42), Ok(()));
         assert_eq!(fake_registers[0], 0x42);
     }
 
