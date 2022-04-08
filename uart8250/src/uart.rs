@@ -685,11 +685,7 @@ impl embedded_hal::serial::Read<u8> for MmioUart8250<'_> {
     type Error = Infallible;
 
     fn read(&mut self) -> nb::Result<u8, Self::Error> {
-        if let Some(byte) = self.read_byte() {
-            Ok(byte)
-        } else {
-            Err(nb::Error::WouldBlock)
-        }
+        self.read_byte().ok_or(nb::Error::WouldBlock)
     }
 }
 
