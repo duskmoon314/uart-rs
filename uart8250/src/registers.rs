@@ -36,7 +36,7 @@ pub struct Registers {
 
 impl Registers {
     /// Constructs a new instance of the UART registers starting at the given base address.
-    pub fn from_base_address(base_address: usize) -> &'static mut Self {
-        unsafe { &mut *(base_address as *mut crate::registers::Registers) }
+    pub unsafe fn from_base_address(base_address: usize) -> &'static mut Self {
+        &mut *(base_address as *mut crate::registers::Registers)
     }
 }

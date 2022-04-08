@@ -102,7 +102,13 @@ pub struct MmioUart8250<'a> {
 
 impl<'a> MmioUart8250<'a> {
     /// Creates a new UART.
-    pub fn new(base_address: usize) -> Self {
+    ///
+    /// # Safety
+    ///
+    /// The given base address must point to the 8 MMIO control registers of an appropriate UART
+    /// device, which must be mapped into the address space of the process as device memory and not
+    /// have any other aliases.
+    pub unsafe fn new(base_address: usize) -> Self {
         Self {
             reg: Registers::from_base_address(base_address),
         }
@@ -112,7 +118,7 @@ impl<'a> MmioUart8250<'a> {
     ///
     /// More customised initialisation can be done using other methods below.
     pub fn init(&self, clock: usize, baud_rate: usize) {
-        // Enable DLAB and Set divisor
+        // Enable DLAB and set divisor
         self.set_divisor(clock, baud_rate);
 
         // Disable DLAB and set word length 8 bits, no parity, 1 stop bit
@@ -128,7 +134,13 @@ impl<'a> MmioUart8250<'a> {
     }
 
     /// Sets a new base address for the UART.
-    pub fn set_base_address(&mut self, base_address: usize) {
+    ///
+    /// # Safety
+    ///
+    /// The given base address must point to the 8 MMIO control registers of an appropriate UART
+    /// device, which must be mapped into the address space of the process as device memory and not
+    /// have any other aliases.
+    pub unsafe fn set_base_address(&mut self, base_address: usize) {
         self.reg = Registers::from_base_address(base_address);
     }
 
@@ -162,7 +174,7 @@ impl<'a> MmioUart8250<'a> {
     /// >
     /// > If the receive buffer is occupied or the FIFO is full, the incoming data is discarded and the Receiver Line Status interrupt is written to the IIR register. The Overrun Error bit is also set in the Line Status Register.
     #[inline]
-    pub fn write_thr(&self, value: u8) {
+    fn write_thr(&self, value: u8) {
         unsafe { self.reg.thr_rbr_dll.write(value) }
     }
 
@@ -170,13 +182,28 @@ impl<'a> MmioUart8250<'a> {
     ///
     /// Read Receiver Buffer to get data
     #[inline]
-    pub fn read_rbr(&self) -> u8 {
+    fn read_rbr(&self) -> u8 {
         self.reg.thr_rbr_dll.read()
     }
 
-    /// read DLL (offset + 0)
+    /// write DLL (offset + 0)
     ///
-    /// get divisor latch low byte in the register
+    /// set divisor latch low byte in the register
+    #[inline]
+    fn write_dll(&self, value: u8) {
+        unsafe { self.reg.thr_rbr_dll.write(value) }
+    }
+
+    /// write DLH (offset + 1)
+    ///
+    /// set divisor latch high byte in the register
+    #[inline]
+    fn write_dlh(&self, value: u8) {
+        unsafe { self.reg.ier_dlh.write(value) }
+    }
+
+    /// Sets DLAB to true, sets divisor latch according to clock and baud_rate, then sets DLAB to
+    /// false.
     ///
     /// > ## Divisor Latch Bytes
     /// >
@@ -203,36 +230,6 @@ impl<'a> MmioUart8250<'a> {
     /// | 38400     | 3                    | $00                     | $03                    |
     /// | 57600     | 2                    | $00                     | $02                    |
     /// | 115200    | 1                    | $00                     | $01                    |
-    #[inline]
-    pub fn read_dll(&self) -> u8 {
-        self.reg.thr_rbr_dll.read()
-    }
-
-    /// write DLL (offset + 0)
-    ///
-    /// set divisor latch low byte in the register
-    #[inline]
-    pub fn write_dll(&self, value: u8) {
-        unsafe { self.reg.thr_rbr_dll.write(value) }
-    }
-
-    /// read DLH (offset + 1)
-    ///
-    /// get divisor latch high byte in the register
-    #[inline]
-    pub fn read_dlh(&self) -> u8 {
-        self.reg.ier_dlh.read()
-    }
-
-    /// write DLH (offset + 1)
-    ///
-    /// set divisor latch high byte in the register
-    #[inline]
-    pub fn write_dlh(&self, value: u8) {
-        unsafe { self.reg.ier_dlh.write(value) }
-    }
-
-    /// Set divisor latch according to clock and baud_rate, then set DLAB to false
     #[inline]
     pub fn set_divisor(&self, clock: usize, baud_rate: usize) {
         self.enable_divisor_latch_accessible();
@@ -263,7 +260,7 @@ impl<'a> MmioUart8250<'a> {
     /// > | 1   | Enable Transmitter Holding Register Empty Interrupt |
     /// > | 0   | Enable Received Data Available Interrupt            |
     #[inline]
-    pub fn read_ier(&self) -> u8 {
+    fn read_ier(&self) -> u8 {
         self.reg.ier_dlh.read()
     }
 
@@ -277,24 +274,19 @@ impl<'a> MmioUart8250<'a> {
 
     /// Get IER bitflags
     #[inline]
-    pub fn ier(&self) -> IER {
+    fn ier(&self) -> IER {
         IER::from_bits_truncate(self.read_ier())
     }
 
     /// Set IER via bitflags
     #[inline]
-    pub fn set_ier(&self, flag: IER) {
+    fn set_ier(&self, flag: IER) {
         self.write_ier(flag.bits())
     }
 
     /// get whether low power mode (16750) is enabled (IER\[5\])
     pub fn is_low_power_mode_enabled(&self) -> bool {
         self.ier().contains(IER::LPM)
-    }
-
-    /// toggle low power mode (16750) (IER\[5\])
-    pub fn toggle_low_power_mode(&self) {
-        self.set_ier(self.ier() ^ IER::LPM)
     }
 
     /// enable low power mode (16750) (IER\[5\])
@@ -312,11 +304,6 @@ impl<'a> MmioUart8250<'a> {
         self.ier().contains(IER::SM)
     }
 
-    /// toggle sleep mode (16750) (IER\[4\])
-    pub fn toggle_sleep_mode(&self) {
-        self.set_ier(self.ier() ^ IER::SM)
-    }
-
     /// enable sleep mode (16750) (IER\[4\])
     pub fn enable_sleep_mode(&self) {
         self.set_ier(self.ier() | IER::SM)
@@ -330,11 +317,6 @@ impl<'a> MmioUart8250<'a> {
     /// get whether modem status interrupt is enabled (IER\[3\])
     pub fn is_modem_status_interrupt_enabled(&self) -> bool {
         self.ier().contains(IER::MSI)
-    }
-
-    /// toggle modem status interrupt (IER\[3\])
-    pub fn toggle_modem_status_interrupt(&self) {
-        self.set_ier(self.ier() ^ IER::MSI)
     }
 
     /// enable modem status interrupt (IER\[3\])
@@ -352,11 +334,6 @@ impl<'a> MmioUart8250<'a> {
         self.ier().contains(IER::RLSI)
     }
 
-    /// toggle receiver line status interrupt (IER\[2\])
-    pub fn toggle_receiver_line_status_interrupt(&self) {
-        self.set_ier(self.ier() ^ IER::RLSI)
-    }
-
     /// enable receiver line status interrupt (IER\[2\])
     pub fn enable_receiver_line_status_interrupt(&self) {
         self.set_ier(self.ier() | IER::RLSI)
@@ -370,11 +347,6 @@ impl<'a> MmioUart8250<'a> {
     /// get whether transmitter holding register empty interrupt is enabled (IER\[1\])
     pub fn is_transmitter_holding_register_empty_interrupt_enabled(&self) -> bool {
         self.ier().contains(IER::THREI)
-    }
-
-    /// toggle transmitter holding register empty interrupt (IER\[1\])
-    pub fn toggle_transmitter_holding_register_empty_interrupt(&self) {
-        self.set_ier(self.ier() ^ IER::THREI)
     }
 
     /// enable transmitter holding register empty interrupt (IER\[1\])
@@ -392,11 +364,6 @@ impl<'a> MmioUart8250<'a> {
         self.ier().contains(IER::RDAI)
     }
 
-    /// toggle received data available (IER\[0\])
-    pub fn toggle_received_data_available_interrupt(&self) {
-        self.set_ier(self.ier() ^ IER::RDAI)
-    }
-
     /// enable received data available (IER\[0\])
     pub fn enable_received_data_available_interrupt(&self) {
         self.set_ier(self.ier() | IER::RDAI)
@@ -405,43 +372,6 @@ impl<'a> MmioUart8250<'a> {
     /// disable received data available (IER\[0\])
     pub fn disable_received_data_available_interrupt(&self) {
         self.set_ier(self.ier() & !IER::RDAI)
-    }
-
-    /// Read IIR (offset + 2)
-    ///
-    /// > ## Interrupt Identification Register
-    /// >
-    /// > Offset: +2 . This register is to be used to help identify what the unique characteristics of the UART chip that you are using has. This chip has two uses:
-    /// >
-    /// > - Identification of why the UART triggered an interrupt.
-    /// > - Identification of the UART chip itself.
-    /// >
-    /// > Of these, identification of why the interrupt service routine has been invoked is perhaps the most important.
-    /// >
-    /// > The following table explains some of the details of this register, and what each bit on it represents:
-    /// >
-    /// > | Bit        | Notes                             |       |                                   |                                              |                                                                                           |
-    /// > | ---------- | --------------------------------- | ----- | --------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------- |
-    /// > | 7 and 6    | Bit 7                             | Bit 6 |                                   |                                              |                                                                                           |
-    /// > |            | 0                                 | 0     | No FIFO on chip                   |                                              |                                                                                           |
-    /// > |            | 0                                 | 1     | Reserved condition                |                                              |                                                                                           |
-    /// > |            | 1                                 | 0     | FIFO enabled, but not functioning |                                              |                                                                                           |
-    /// > |            | 1                                 | 1     | FIFO enabled                      |                                              |                                                                                           |
-    /// > | 5          | 64 Byte FIFO Enabled (16750 only) |       |                                   |                                              |                                                                                           |
-    /// > | 4          | Reserved                          |       |                                   |                                              |                                                                                           |
-    /// > | 3, 2 and 1 | Bit 3                             | Bit 2 | Bit 1                             |                                              | Reset Method                                                                              |
-    /// > |            | 0                                 | 0     | 0                                 | Modem Status Interrupt                       | Reading Modem Status Register(MSR)                                                        |
-    /// > |            | 0                                 | 0     | 1                                 | Transmitter Holding Register Empty Interrupt | Reading Interrupt Identification Register(IIR) or Writing to Transmit Holding Buffer(THR) |
-    /// > |            | 0                                 | 1     | 0                                 | Received Data Available Interrupt            | Reading Receive Buffer Register(RBR)                                                      |
-    /// > |            | 0                                 | 1     | 1                                 | Receiver Line Status Interrupt               | Reading Line Status Register(LSR)                                                         |
-    /// > |            | 1                                 | 0     | 0                                 | Reserved                                     | N/A                                                                                       |
-    /// > |            | 1                                 | 0     | 1                                 | Reserved                                     | N/A                                                                                       |
-    /// > |            | 1                                 | 1     | 0                                 | Time-out Interrupt Pending (16550 & later)   | Reading Receive Buffer Register(RBR)                                                      |
-    /// > |            | 1                                 | 1     | 1                                 | Reserved                                     | N/A                                                                                       |
-    /// > | 0          | Interrupt Pending Flag            |       |                                   |                                              |                                                                                           |
-    #[inline]
-    pub fn read_iir(&self) -> u8 {
-        self.reg.iir_fcr.read()
     }
 
     /// Read IIR\[7:6\] to get FIFO status
@@ -462,11 +392,11 @@ impl<'a> MmioUart8250<'a> {
 
     /// Read IIR\[3:1\] to get interrupt type
     pub fn read_interrupt_type(&self) -> Option<InterruptType> {
-        let irq = self.reg.iir_fcr.read() & 0b0000_1111;
-        if irq & 1 != 0 {
+        let iir = self.reg.iir_fcr.read() & 0b0000_1111;
+        if iir & 1 != 0 {
             None
         } else {
-            match irq {
+            match iir {
                 0b0000 => Some(InterruptType::ModemStatus),
                 0b0010 => Some(InterruptType::TransmitterHoldingRegisterEmpty),
                 0b0100 => Some(InterruptType::ReceivedDataAvailable),
@@ -476,15 +406,6 @@ impl<'a> MmioUart8250<'a> {
                 _ => panic!("Can't reached"),
             }
         }
-    }
-
-    /// get whether interrupt is pending (IIR\[0\])
-    ///
-    /// # Safety
-    ///
-    /// read iir will reset THREI, so use read_interrupt_type may be better
-    pub unsafe fn is_interrupt_pending(&self) -> bool {
-        self.reg.iir_fcr.read() & 1 == 0
     }
 
     /// Write FCR (offset + 2) to control FIFO buffers
@@ -509,68 +430,25 @@ impl<'a> MmioUart8250<'a> {
     /// > | 1     | Clear Receive FIFO          |       |                                   |                         |
     /// > | 0     | Enable FIFOs                |       |                                   |                         |
     #[inline]
-    pub fn write_fcr(&self, value: u8) {
+    fn write_fcr(&self, value: u8) {
         unsafe { self.reg.iir_fcr.write(value) }
-    }
-
-    /// Read LCR (offset + 3)
-    ///
-    /// Read Line Control Register to get the data protocol and DLAB
-    ///
-    /// > ## Line Control Register
-    /// >
-    /// > Offset: +3 . This register has two major purposes:
-    /// >
-    /// > - Setting the Divisor Latch Access Bit (DLAB), allowing you to set the values of the Divisor Latch Bytes.
-    /// > - Setting the bit patterns that will be used for both receiving and transmitting the serial data. In other words, the serial data protocol you will be using (8-1-None, 5-2-Even, etc.).
-    /// >
-    /// > | Bit      | Notes                    |                              |             |               |
-    /// > | -------- | ------------------------ | ---------------------------- | ----------- | ------------- |
-    /// > | 7        | Divisor Latch Access Bit |                              |             |               |
-    /// > | 6        | Set Break Enable         |                              |             |               |
-    /// > | 3, 4 & 5 | Bit 5                    | Bit 4                        | Bit 3       | Parity Select |
-    /// > |          | 0                        | 0                            | 0           | No Parity     |
-    /// > |          | 0                        | 0                            | 1           | Odd Parity    |
-    /// > |          | 0                        | 1                            | 1           | Even Parity   |
-    /// > |          | 1                        | 0                            | 1           | Mark          |
-    /// > |          | 1                        | 1                            | 1           | Space         |
-    /// > | 2        | 0                        | One Stop Bit                 |             |               |
-    /// > |          | 1                        | 1.5 Stop Bits or 2 Stop Bits |             |               |
-    /// > | 0 & 1    | Bit 1                    | Bit 0                        | Word Length |               |
-    /// > |          | 0                        | 0                            | 5 Bits      |               |
-    /// > |          | 0                        | 1                            | 6 Bits      |               |
-    /// > |          | 1                        | 0                            | 7 Bits      |               |
-    /// > |          | 1                        | 1                            | 8 Bits      |               |
-    #[inline]
-    pub fn read_lcr(&self) -> u8 {
-        self.reg.lcr.read()
     }
 
     /// Write LCR (offset + 3)
     ///
     /// Write Line Control Register to set DLAB and the serial data protocol
     #[inline]
-    pub fn write_lcr(&self, value: u8) {
+    fn write_lcr(&self, value: u8) {
         unsafe { self.reg.lcr.write(value) }
     }
 
-    /// get whether DLAB is enabled
-    pub fn is_divisor_latch_accessible(&self) -> bool {
-        self.reg.lcr.read() & 0b1000_0000 != 0
-    }
-
-    /// toggle DLAB
-    pub fn toggle_divisor_latch_accessible(&self) {
-        unsafe { self.reg.lcr.modify(|v| v ^ 0b1000_0000) }
-    }
-
     /// enable DLAB
-    pub fn enable_divisor_latch_accessible(&self) {
+    fn enable_divisor_latch_accessible(&self) {
         unsafe { self.reg.lcr.modify(|v| v | 0b1000_0000) }
     }
 
     /// disable DLAB
-    pub fn disable_divisor_latch_accessible(&self) {
+    fn disable_divisor_latch_accessible(&self) {
         unsafe { self.reg.lcr.modify(|v| v & !0b1000_0000) }
     }
 
@@ -627,34 +505,11 @@ impl<'a> MmioUart8250<'a> {
         }
     }
 
-    /// Read MCR (offset + 4)
-    ///
-    /// Read Modem Control Register to get how flow is controlled
-    ///
-    /// > ## Modem Control Register
-    /// >
-    /// > Offset: +4 . This register allows you to do "hardware" flow control, under software control. Or in a more practical manner, it allows direct manipulation of four different wires on the UART that you can set to any series of independent logical states, and be able to offer control of the modem. It should also be noted that most UARTs need Auxiliary Output 2 set to a logical "1" to enable interrupts.
-    /// >
-    /// > | Bit | Notes                            |
-    /// > | --- | -------------------------------- |
-    /// > | 7   | Reserved                         |
-    /// > | 6   | Reserved                         |
-    /// > | 5   | Autoflow Control Enabled (16750) |
-    /// > | 4   | Loopback Mode                    |
-    /// > | 3   | Auxiliary Output 2               |
-    /// > | 2   | Auxiliary Output 1               |
-    /// > | 1   | Request To Send                  |
-    /// > | 0   | Data Terminal Ready              |
-    #[inline]
-    pub fn read_mcr(&self) -> u8 {
-        self.reg.mcr.read()
-    }
-
     /// Write MCR (offset + 4)
     ///
     /// Write Modem Control Register to control flow
     #[inline]
-    pub fn write_mcr(&self, value: u8) {
+    fn write_mcr(&self, value: u8) {
         unsafe { self.reg.mcr.write(value) }
     }
 
@@ -675,13 +530,13 @@ impl<'a> MmioUart8250<'a> {
     /// > | 1   | Overrun Error                      |
     /// > | 0   | Data Ready                         |
     #[inline]
-    pub fn read_lsr(&self) -> u8 {
+    fn read_lsr(&self) -> u8 {
         self.reg.lsr.read()
     }
 
     /// Get LSR bitflags
     #[inline]
-    pub fn lsr(&self) -> LSR {
+    fn lsr(&self) -> LSR {
         LSR::from_bits_truncate(self.read_lsr())
     }
 
@@ -737,13 +592,13 @@ impl<'a> MmioUart8250<'a> {
     /// > | 1   | Delta Data Set Ready         |
     /// > | 0   | Delta Clear To Send          |
     #[inline]
-    pub fn read_msr(&self) -> u8 {
+    fn read_msr(&self) -> u8 {
         self.reg.msr.read()
     }
 
     /// Get MSR bitflags
     #[inline]
-    pub fn msr(&self) -> MSR {
+    fn msr(&self) -> MSR {
         MSR::from_bits_truncate(self.read_msr())
     }
 
@@ -797,8 +652,55 @@ impl<'a> MmioUart8250<'a> {
 impl<'a> fmt::Write for MmioUart8250<'a> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         for c in s.as_bytes() {
-            self.write_thr(*c);
+            self.write_byte(*c);
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // These tests treat normal memory as device memory, which is not necessarily guaranteed to
+    // work, but it seems to for now.
+
+    #[test]
+    fn initialise() {
+        // Create a fake UART using an in-memory buffer, and check that it is initialised as
+        // expected.
+        let mut fake_registers: [u8; 8] = [0xff; 8];
+        let uart = unsafe { MmioUart8250::new(&mut fake_registers as *mut u8 as usize) };
+
+        uart.init(11_059_200, 115200);
+
+        assert!(matches!(uart.get_parity(), Parity::No));
+        assert_eq!(uart.get_stop_bit(), 1);
+        assert_eq!(uart.get_word_length(), 8);
+    }
+
+    #[test]
+    fn write() {
+        let mut fake_registers: [u8; 8] = [0; 8];
+        let uart = unsafe { MmioUart8250::new(&mut fake_registers as *mut u8 as usize) };
+
+        uart.write_byte(0x42);
+
+        assert_eq!(fake_registers[0], 0x42);
+    }
+
+    #[test]
+    fn read() {
+        let mut fake_registers: [u8; 8] = [0; 8];
+        let uart = unsafe { MmioUart8250::new(&mut fake_registers as *mut u8 as usize) };
+
+        // First try to read when there is nothing available.
+        assert_eq!(uart.read_byte(), None);
+
+        // Set the UART up to have a byte available to read and read it.
+        fake_registers[0] = 0xab;
+        fake_registers[5] = 0b0000_0001;
+
+        assert_eq!(uart.read_byte(), Some(0xab));
     }
 }
