@@ -1,37 +1,43 @@
+use crate::uart::{IER2, LCR};
 use core::u8;
+use tock_registers::{
+    interfaces::{Readable, Writeable},
+    register_structs,
+    registers::{ReadOnly, ReadWrite},
+};
 
-use volatile_register::{RO, RW};
-
-/// # UART Registers
-///
-/// The chip has a total of 12 different registers that are mapped into 8 different Port I/O locations / Memory Mapped I/O addresses.
-///
-/// The following is a table of each of the registers that can be found in a typical UART chip
-///
-/// | Base Address | DLAB | I/O Access | Abbrv. | Register Name                     |
-/// | ------------ | ---- | ---------- | ------ | --------------------------------- |
-/// | +0           | 0    | Write      | THR    | Transmitter Holding Buffer        |
-/// | +0           | 0    | Read       | RBR    | Receiver Buffer                   |
-/// | +0           | 1    | Read/Write | DLL    | Divisor Latch Low Byte            |
-/// | +1           | 0    | Read/Write | IER    | Interrupt Enable Register         |
-/// | +1           | 1    | Read/Write | DLH    | Divisor Latch High Byte           |
-/// | +2           | x    | Read       | IIR    | Interrupt Identification Register |
-/// | +2           | x    | Write      | FCR    | FIFO Control Register             |
-/// | +3           | x    | Read/Write | LCR    | Line Control Register             |
-/// | +4           | x    | Read/Write | MCR    | Modem Control Register            |
-/// | +5           | x    | Read       | LSR    | Line Status Register              |
-/// | +6           | x    | Read       | MSR    | Modem Status Register             |
-/// | +7           | x    | Read/Write | SR     | Scratch Register                  |
-#[repr(C, packed)]
-pub struct Registers {
-    thr_rbr_dll: RW<u8>,
-    ier_dlh: RW<u8>,
-    iir_fcr: RW<u8>,
-    pub lcr: RW<u8>,
-    mcr: RW<u8>,
-    lsr: RO<u8>,
-    msr: RO<u8>,
-    scratch: RW<u8>,
+register_structs! {
+    /// # UART Registers
+    ///
+    /// The chip has a total of 12 different registers that are mapped into 8 different Port I/O locations / Memory Mapped I/O addresses.
+    ///
+    /// The following is a table of each of the registers that can be found in a typical UART chip
+    ///
+    /// | Base Address | DLAB | I/O Access | Abbrv. | Register Name                     |
+    /// | ------------ | ---- | ---------- | ------ | --------------------------------- |
+    /// | +0           | 0    | Write      | THR    | Transmitter Holding Buffer        |
+    /// | +0           | 0    | Read       | RBR    | Receiver Buffer                   |
+    /// | +0           | 1    | Read/Write | DLL    | Divisor Latch Low Byte            |
+    /// | +1           | 0    | Read/Write | IER    | Interrupt Enable Register         |
+    /// | +1           | 1    | Read/Write | DLH    | Divisor Latch High Byte           |
+    /// | +2           | x    | Read       | IIR    | Interrupt Identification Register |
+    /// | +2           | x    | Write      | FCR    | FIFO Control Register             |
+    /// | +3           | x    | Read/Write | LCR    | Line Control Register             |
+    /// | +4           | x    | Read/Write | MCR    | Modem Control Register            |
+    /// | +5           | x    | Read       | LSR    | Line Status Register              |
+    /// | +6           | x    | Read       | MSR    | Modem Status Register             |
+    /// | +7           | x    | Read/Write | SR     | Scratch Register                  |
+    pub Registers {
+        (0x00 => thr_rbr_dll: ReadWrite<u8>),
+        (0x01 => ier_dlh: ReadWrite<u8, IER2::Register>),
+        (0x02 => iir_fcr: ReadWrite<u8>),
+        (0x03 => pub lcr: ReadWrite<u8, LCR::Register>),
+        (0x04 => mcr: ReadWrite<u8>),
+        (0x05 => lsr: ReadOnly<u8>),
+        (0x06 => msr: ReadOnly<u8>),
+        (0x07 => scratch: ReadWrite<u8>),
+        (0x08 => @END),
+    }
 }
 
 impl Registers {
@@ -53,7 +59,7 @@ impl Registers {
     /// > If the receive buffer is occupied or the FIFO is full, the incoming data is discarded and the Receiver Line Status interrupt is written to the IIR register. The Overrun Error bit is also set in the Line Status Register.
     #[inline]
     pub fn write_thr(&self, value: u8) {
-        unsafe { self.thr_rbr_dll.write(value) }
+        self.thr_rbr_dll.set(value)
     }
 
     /// read RBR (offset + 0)
@@ -61,41 +67,7 @@ impl Registers {
     /// Read Receiver Buffer to get data
     #[inline]
     pub fn read_rbr(&self) -> u8 {
-        self.thr_rbr_dll.read()
-    }
-
-    /// read DLL (offset + 0)
-    ///
-    /// get divisor latch low byte in the register
-    ///
-    /// > ## Divisor Latch Bytes
-    /// >
-    /// > Offset: +0 and +1 . The Divisor Latch Bytes are what control the baud rate of the modem. As you might guess from the name of this register, it is used as a divisor to determine what baud rate that the chip is going to be transmitting at.
-    ///
-    /// Used clock 1.8432 MHz as example, first divide 16 and get 115200. Then use the formula to get divisor latch value:
-    ///
-    /// *DivisorLatchValue = 115200 / BaudRate*
-    ///
-    /// This gives the following table:
-    ///
-    /// | Baud Rate | Divisor (in decimal) | Divisor Latch High Byte | Divisor Latch Low Byte |
-    /// | --------- | -------------------- | ----------------------- | ---------------------- |
-    /// | 50        | 2304                 | $09                     | $00                    |
-    /// | 110       | 1047                 | $04                     | $17                    |
-    /// | 220       | 524                  | $02                     | $0C                    |
-    /// | 300       | 384                  | $01                     | $80                    |
-    /// | 600       | 192                  | $00                     | $C0                    |
-    /// | 1200      | 96                   | $00                     | $60                    |
-    /// | 2400      | 48                   | $00                     | $30                    |
-    /// | 4800      | 24                   | $00                     | $18                    |
-    /// | 9600      | 12                   | $00                     | $0C                    |
-    /// | 19200     | 6                    | $00                     | $06                    |
-    /// | 38400     | 3                    | $00                     | $03                    |
-    /// | 57600     | 2                    | $00                     | $02                    |
-    /// | 115200    | 1                    | $00                     | $01                    |
-    #[inline]
-    pub fn read_dll(&self) -> u8 {
-        self.thr_rbr_dll.read()
+        self.thr_rbr_dll.get()
     }
 
     /// write DLL (offset + 0)
@@ -103,15 +75,7 @@ impl Registers {
     /// set divisor latch low byte in the register
     #[inline]
     pub fn write_dll(&self, value: u8) {
-        unsafe { self.thr_rbr_dll.write(value) }
-    }
-
-    /// read DLH (offset + 1)
-    ///
-    /// get divisor latch high byte in the register
-    #[inline]
-    pub fn read_dlh(&self) -> u8 {
-        self.ier_dlh.read()
+        self.thr_rbr_dll.set(value)
     }
 
     /// write DLH (offset + 1)
@@ -119,7 +83,7 @@ impl Registers {
     /// set divisor latch high byte in the register
     #[inline]
     pub fn write_dlh(&self, value: u8) {
-        unsafe { self.ier_dlh.write(value) }
+        self.ier_dlh.set(value)
     }
 
     /// Read IER (offset + 1)
@@ -144,7 +108,7 @@ impl Registers {
     /// > | 0   | Enable Received Data Available Interrupt            |
     #[inline]
     pub fn read_ier(&self) -> u8 {
-        self.ier_dlh.read()
+        self.ier_dlh.get()
     }
 
     /// Write IER (offset + 1)
@@ -152,7 +116,7 @@ impl Registers {
     /// Write Interrupt Enable Register to turn on/off interrupts
     #[inline]
     pub fn write_ier(&self, value: u8) {
-        unsafe { self.ier_dlh.write(value) }
+        self.ier_dlh.set(value)
     }
 
     /// Read IIR (offset + 2)
@@ -189,7 +153,7 @@ impl Registers {
     /// > | 0          | Interrupt Pending Flag            |       |                                   |                                              |                                                                                           |
     #[inline]
     pub fn read_iir(&self) -> u8 {
-        self.iir_fcr.read()
+        self.iir_fcr.get()
     }
 
     /// Write FCR (offset + 2) to control FIFO buffers
@@ -215,7 +179,7 @@ impl Registers {
     /// > | 0     | Enable FIFOs                |       |                                   |                         |
     #[inline]
     pub fn write_fcr(&self, value: u8) {
-        unsafe { self.iir_fcr.write(value) }
+        self.iir_fcr.set(value)
     }
 
     /// Read LCR (offset + 3)
@@ -248,15 +212,7 @@ impl Registers {
     /// > |          | 1                        | 1                            | 8 Bits      |               |
     #[inline]
     pub fn read_lcr(&self) -> u8 {
-        self.lcr.read()
-    }
-
-    /// Write LCR (offset + 3)
-    ///
-    /// Write Line Control Register to set DLAB and the serial data protocol
-    #[inline]
-    pub fn write_lcr(&self, value: u8) {
-        unsafe { self.lcr.write(value) }
+        self.lcr.get()
     }
 
     /// Read MCR (offset + 4)
@@ -279,7 +235,7 @@ impl Registers {
     /// > | 0   | Data Terminal Ready              |
     #[inline]
     pub fn read_mcr(&self) -> u8 {
-        self.mcr.read()
+        self.mcr.get()
     }
 
     /// Write MCR (offset + 4)
@@ -287,7 +243,7 @@ impl Registers {
     /// Write Modem Control Register to control flow
     #[inline]
     pub fn write_mcr(&self, value: u8) {
-        unsafe { self.mcr.write(value) }
+        self.mcr.set(value)
     }
 
     /// Read LSR (offset + 5)
@@ -308,7 +264,7 @@ impl Registers {
     /// > | 0   | Data Ready                         |
     #[inline]
     pub fn read_lsr(&self) -> u8 {
-        self.lsr.read()
+        self.lsr.get()
     }
 
     /// Read MSR (offset + 6)
@@ -329,16 +285,6 @@ impl Registers {
     /// > | 0   | Delta Clear To Send          |
     #[inline]
     pub fn read_msr(&self) -> u8 {
-        self.msr.read()
-    }
-
-    #[inline]
-    pub fn read_sr(&self) -> u8 {
-        self.scratch.read()
-    }
-
-    #[inline]
-    pub fn write_sr(&self, value: u8) {
-        unsafe { self.scratch.write(value) }
+        self.msr.get()
     }
 }

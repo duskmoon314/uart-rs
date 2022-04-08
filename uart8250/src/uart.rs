@@ -2,8 +2,72 @@ use bitflags::bitflags;
 #[cfg(feature = "embedded")]
 use core::convert::Infallible;
 use core::fmt::{self, Display, Formatter};
+use tock_registers::{
+    fields::FieldValue,
+    interfaces::{ReadWriteable, Readable, Writeable},
+    register_bitfields, LocalRegisterCopy,
+};
 
 use crate::registers::Registers;
+
+register_bitfields![
+    u8,
+
+    /// Interrupt Enable Register
+    pub IER2 [
+        /// Enable Received Data Available Interrupt
+        RDAI OFFSET(0) NUMBITS(1) [],
+        /// Enable Transmitter Holding Register Empty Interrupt
+        THREI OFFSET(1) NUMBITS(1) [],
+        /// Enable Receiver Line Status Interrupt
+        RLSI OFFSET(2) NUMBITS(1) [],
+        /// Enable Modem Status Interrupt
+        MSI OFFSET(3) NUMBITS(1) [],
+        /// Enable Sleep Mode (16750)
+        SM OFFSET(4) NUMBITS(1) [],
+        /// Enable Low Power Mode (16750)
+        LPM OFFSET(5) NUMBITS(1) [],
+    ],
+
+    /// Line Control Register
+    pub LCR [
+        /// Divisor Latch Access Bit
+        DLAB OFFSET(7) NUMBITS(1) [], // = 0b1000_0000;
+        /// Set Break Enable
+        SBE OFFSET(6) NUMBITS(1) [], // = 0b0100_0000;
+        /// Parity
+        Parity OFFSET(3) NUMBITS(3) [
+            /// No parity
+            None = 0,
+            /// Odd parity
+            Odd = 1,
+            /// Even parity
+            Even = 3,
+            /// Mark
+            Mark = 5,
+            /// Space
+            Space = 7,
+        ],
+        /// Number of stop bits
+        STOP_BITS OFFSET(2) NUMBITS(1) [
+            /// One stop bit
+            One = 0,
+            /// 1.5 or 2 stop bits
+            Two = 1,
+        ],
+        /// Word length
+        WORD_LENGTH OFFSET(0) NUMBITS(2) [
+            /// 5 bit word length
+            Bits5 = 0,
+            /// 6 bit word length
+            Bits6 = 1,
+            /// 7 bit word length
+            Bits7 = 2,
+            /// 8 bit word length
+            Bits8 = 3,
+        ],
+    ],
+];
 
 bitflags! {
     /// Interrupt Enable Register (bitflags)
@@ -88,39 +152,6 @@ bitflags! {
         const CLEAR_RX = 0b0000_0010;
         /// Enable FIFOs.
         const ENABLE = 0b0000_0001;
-    }
-}
-
-bitflags! {
-    /// Line Control Register (bitflags)
-    pub struct LCR: u8 {
-        /// Divisor Latch Access Bit
-        const DLAB = 0b1000_0000;
-        /// Set Break Enable
-        const SBE = 0b0100_0000;
-        /// No parity
-        const NO_PARITY = 0b0000_0000;
-        /// Odd parity
-        const ODD_PARITY = 0b0000_1000;
-        /// Even parity
-        const EVEN_PARITY = 0b0001_1000;
-        /// Mark
-        const MARK = 0b0010_1000;
-        /// Space
-        const SPACE = 0b0011_1000;
-        /// One stop bit
-        const ONE_STOP_BIT = 0b0000_0000;
-        /// 1.5 or 2 stop bits
-        const TWO_STOP_BITS = 0b0000_0100;
-        /// 5 bit word length
-        const WORD_5_BITS = 0b0000_0000;
-        /// 6 bit word length
-        const WORD_6_BITS = 0b0000_0001;
-        /// 7 bit word length
-        const WORD_7_BITS = 0b0000_0010;
-        /// 8 bit word length
-        const WORD_8_BITS = 0b0000_0011;
-
     }
 }
 
@@ -213,7 +244,7 @@ impl<'a> MmioUart8250<'a> {
         self.set_divisor(clock, baud_rate);
 
         // Disable DLAB and set word length 8 bits, no parity, 1 stop bit
-        self.set_lcr(LCR::NO_PARITY | LCR::ONE_STOP_BIT | LCR::WORD_8_BITS);
+        self.set_lcr(LCR::Parity::None + LCR::STOP_BITS::One + LCR::WORD_LENGTH::Bits8);
         // Enable FIFO
         self.set_fcr(FCR::ENABLE);
         // No modem control
@@ -404,35 +435,40 @@ impl<'a> MmioUart8250<'a> {
 
     /// enable DLAB
     fn enable_divisor_latch_accessible(&self) {
-        unsafe { self.reg.lcr.modify(|v| v | 0b1000_0000) }
+        self.reg.lcr.modify(LCR::DLAB::SET)
     }
 
     /// disable DLAB
     fn disable_divisor_latch_accessible(&self) {
-        unsafe { self.reg.lcr.modify(|v| v & !0b1000_0000) }
+        self.reg.lcr.modify(LCR::DLAB::CLEAR)
     }
 
     /// get parity of used data protocol
     pub fn get_parity(&self) -> Parity {
-        match self.reg.lcr.read() & 0b0011_1000 {
-            0b0000_0000 => Parity::No,
-            0b0000_1000 => Parity::Odd,
-            0b0001_1000 => Parity::Even,
-            0b0010_1000 => Parity::Mark,
-            0b0011_1000 => Parity::Space,
-            _ => panic!("Invalid Parity! Please check your uart"),
+        match self
+            .reg
+            .lcr
+            .read_as_enum(LCR::Parity)
+            .expect("Invalid Parity! Please check your UART.")
+        {
+            LCR::Parity::Value::None => Parity::No,
+            LCR::Parity::Value::Odd => Parity::Odd,
+            LCR::Parity::Value::Even => Parity::Even,
+            LCR::Parity::Value::Mark => Parity::Mark,
+            LCR::Parity::Value::Space => Parity::Space,
         }
     }
 
     /// set parity
     pub fn set_parity(&self, parity: Parity) {
-        match parity {
-            Parity::No => unsafe { self.reg.lcr.modify(|v| (v & 0b1100_0111)) },
-            Parity::Odd => unsafe { self.reg.lcr.modify(|v| (v & 0b1100_0111) | 0b0000_1000) },
-            Parity::Even => unsafe { self.reg.lcr.modify(|v| (v & 0b1100_0111) | 0b0001_1000) },
-            Parity::Mark => unsafe { self.reg.lcr.modify(|v| (v & 0b1100_0111) | 0b0010_1000) },
-            Parity::Space => unsafe { self.reg.lcr.modify(|v| v | 0b0011_1000) },
-        }
+        let parity = match parity {
+            Parity::No => LCR::Parity::None,
+            Parity::Odd => LCR::Parity::Odd,
+            Parity::Even => LCR::Parity::Even,
+            Parity::Mark => LCR::Parity::Mark,
+            Parity::Space => LCR::Parity::Space,
+        };
+        self.reg.lcr.modify(parity);
     }
 
     /// get stop bit of used data protocol
@@ -445,21 +481,21 @@ impl<'a> MmioUart8250<'a> {
     /// set stop bit, only 1 and 2 can be used as `stop_bit`
     pub fn set_stop_bit(&self, stop_bit: u8) {
         match stop_bit {
-            1 => unsafe { self.reg.lcr.modify(|v| v & 0b1111_1011) },
-            2 => unsafe { self.reg.lcr.modify(|v| v | 0b0000_0100) },
+            1 => self.reg.lcr.modify(LCR::STOP_BITS::One),
+            2 => self.reg.lcr.modify(LCR::STOP_BITS::Two),
             _ => panic!("Invalid stop bit"),
         }
     }
 
     /// get word length of used data protocol
     pub fn get_word_length(&self) -> u8 {
-        (self.reg.read_lcr() & 0b11) + 5
+        self.reg.lcr.read(LCR::WORD_LENGTH) + 5
     }
 
     /// set word length, only 5..=8 can be used as `length`
     pub fn set_word_length(&self, length: u8) {
         if (5..=8).contains(&length) {
-            unsafe { self.reg.lcr.modify(|v| v | (length - 5)) }
+            self.reg.lcr.modify(LCR::WORD_LENGTH.val(length - 5))
         } else {
             panic!("Invalid word length")
         }
@@ -473,14 +509,14 @@ impl<'a> MmioUart8250<'a> {
 
     /// Gets LCR bitflags
     #[inline]
-    pub fn lcr(&self) -> LCR {
-        LCR::from_bits_truncate(self.reg.read_lcr())
+    pub fn lcr(&self) -> LocalRegisterCopy<u8, LCR::Register> {
+        self.reg.lcr.extract()
     }
 
     /// Sets LCR bitflags
     #[inline]
-    pub fn set_lcr(&self, lcr: LCR) {
-        self.reg.write_lcr(lcr.bits())
+    pub fn set_lcr(&self, lcr: FieldValue<u8, LCR::Register>) {
+        self.reg.lcr.write(lcr)
     }
 
     /// Gets MCR bitflags
