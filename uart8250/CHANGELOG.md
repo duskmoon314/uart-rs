@@ -1,5 +1,34 @@
 # Changelog
 
+## Unreleased
+
+## v0.6.0
+
+### Added
+
+- Add basic tests
+- Add `TransmitError` and check error in `write_byte`
+- Implement embedded_hal serial traits
+
+### Changed
+
+- Use register names instead of arrays
+- Derive `Copy` and `Eq` for bare enums
+-
+
+### Removed
+
+- Remove toggle methods
+
+### Security
+
+- The `uart` module is private
+- Mark some methods as unsafe
+  - `from_base_address`
+  - `set_base_address`
+- Mark some methods as private
+  - methods that directly access the whole register
+
 ## v0.5.0
 
 - Add several bitflags of status registers
