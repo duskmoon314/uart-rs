@@ -22,21 +22,62 @@ use volatile_register::{RO, RW};
 /// | +5           | x    | Read       | LSR    | Line Status Register              |
 /// | +6           | x    | Read       | MSR    | Modem Status Register             |
 /// | +7           | x    | Read/Write | SR     | Scratch Register                  |
-#[repr(C, packed)]
-pub struct Registers {
-    pub thr_rbr_dll: RW<u8>,
-    pub ier_dlh: RW<u8>,
-    pub iir_fcr: RW<u8>,
-    pub lcr: RW<u8>,
-    pub mcr: RW<u8>,
-    pub lsr: RO<u8>,
-    pub msr: RO<u8>,
-    pub scratch: RW<u8>,
+#[repr(C)]
+pub struct Registers<const W: usize> {
+    pub thr_rbr_dll: RwReg<W, u8>,
+    pub ier_dlh: RwReg<W, u8>,
+    pub iir_fcr: RwReg<W, u8>,
+    pub lcr: RwReg<W, u8>,
+    pub mcr: RwReg<W, u8>,
+    pub lsr: RoReg<W, u8>,
+    pub msr: RoReg<W, u8>,
+    pub scratch: RwReg<W, u8>,
 }
 
-impl Registers {
+#[repr(C)]
+pub struct RoReg<const W: usize, T: Copy>([RO<T>; W]);
+
+impl<const W: usize, T: Copy> RoReg<W, T> {
+    /// Reads the value of the register
+    #[inline(always)]
+    pub fn read(&self) -> T {
+        self.0[0].read()
+    }
+}
+
+#[repr(C)]
+pub struct RwReg<const W: usize, T: Copy>([RW<T>; W]);
+
+impl<const W: usize, T: Copy> RwReg<W, T> {
+    /// Performs a read-modify-write operation
+    ///
+    /// NOTE: `unsafe` because writes to a register are side effectful
+    #[inline(always)]
+    pub unsafe fn modify<F>(&self, f: F)
+    where
+        F: FnOnce(T) -> T,
+    {
+        self.0[0].modify(f);
+    }
+
+    /// Reads the value of the register
+    #[inline(always)]
+    pub fn read(&self) -> T {
+        self.0[0].read()
+    }
+
+    /// Writes a `value` into the register
+    ///
+    /// NOTE: `unsafe` because writes to a register are side effectful
+    #[inline(always)]
+    pub unsafe fn write(&self, value: T) {
+        self.0[0].write(value);
+    }
+}
+
+impl<const W: usize> Registers<W> {
     /// Constructs a new instance of the UART registers starting at the given base address.
     pub unsafe fn from_base_address(base_address: usize) -> &'static mut Self {
-        &mut *(base_address as *mut crate::registers::Registers)
+        &mut *(base_address as *mut Registers<W>)
     }
 }
