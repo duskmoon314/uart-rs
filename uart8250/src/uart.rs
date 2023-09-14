@@ -3,7 +3,7 @@ use bitflags::bitflags;
 use core::convert::Infallible;
 use core::fmt::{self, Display, Formatter};
 
-use crate::registers::Registers;
+use crate::registers::{Register, Registers};
 
 bitflags! {
     /// Interrupt Enable Register (bitflags)
@@ -112,11 +112,11 @@ impl Display for TransmitError {
 /// # MMIO version of an 8250 UART.
 ///
 /// **Note** This is only tested on the NS16550 compatible UART used in QEMU 5.0 virt machine of RISC-V.
-pub struct MmioUart8250<'a, const W: usize> {
-    reg: &'a mut Registers<W>,
+pub struct MmioUart8250<'a, R: Register + Copy> {
+    reg: &'a mut Registers<R>,
 }
 
-impl<'a, const W: usize> MmioUart8250<'a, W> {
+impl<'a, R: Register + Copy + 'static> MmioUart8250<'a, R> {
     /// Creates a new UART.
     ///
     /// # Safety
@@ -670,7 +670,7 @@ impl<'a, const W: usize> MmioUart8250<'a, W> {
 ///
 /// A simple implementation, may be changed in the future
 #[cfg(feature = "fmt")]
-impl<'a, const W: usize> fmt::Write for MmioUart8250<'a, W> {
+impl<'a, R: Register + Copy + 'static> fmt::Write for MmioUart8250<'a, R> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         for c in s.as_bytes() {
             // If buffer is full, keep retrying.
@@ -681,7 +681,7 @@ impl<'a, const W: usize> fmt::Write for MmioUart8250<'a, W> {
 }
 
 #[cfg(feature = "embedded")]
-impl<const W: usize> embedded_hal::serial::Read<u8> for MmioUart8250<'_, W> {
+impl<R: Register + Copy + 'static> embedded_hal::serial::Read<u8> for MmioUart8250<'_, R> {
     type Error = Infallible;
 
     fn read(&mut self) -> nb::Result<u8, Self::Error> {
@@ -690,7 +690,7 @@ impl<const W: usize> embedded_hal::serial::Read<u8> for MmioUart8250<'_, W> {
 }
 
 #[cfg(feature = "embedded")]
-impl<const W: usize> embedded_hal::serial::Write<u8> for MmioUart8250<'_, W> {
+impl<R: Register + Copy + 'static> embedded_hal::serial::Write<u8> for MmioUart8250<'_, R> {
     type Error = Infallible;
 
     fn write(&mut self, byte: u8) -> nb::Result<(), Self::Error> {
@@ -720,7 +720,7 @@ mod tests {
         // Create a fake UART using an in-memory buffer, and check that it is initialised as
         // expected.
         let mut fake_registers: [u8; 8] = [0xff; 8];
-        let uart = unsafe { MmioUart8250::<1>::new(&mut fake_registers as *mut u8 as usize) };
+        let uart = unsafe { MmioUart8250::<u8>::new(&mut fake_registers as *mut u8 as usize) };
 
         uart.init(11_059_200, 115200);
 
@@ -732,7 +732,7 @@ mod tests {
     #[test]
     fn write() {
         let mut fake_registers: [u8; 8] = [0; 8];
-        let uart = unsafe { MmioUart8250::<1>::new(&mut fake_registers as *mut u8 as usize) };
+        let uart = unsafe { MmioUart8250::<u8>::new(&mut fake_registers as *mut u8 as usize) };
 
         // Pretend that the transmit buffer is full.
         fake_registers[5] = 0;
@@ -748,7 +748,7 @@ mod tests {
     #[test]
     fn read() {
         let mut fake_registers: [u8; 8] = [0; 8];
-        let uart = unsafe { MmioUart8250::<1>::new(&mut fake_registers as *mut u8 as usize) };
+        let uart = unsafe { MmioUart8250::<u8>::new(&mut fake_registers as *mut u8 as usize) };
 
         // First try to read when there is nothing available.
         assert_eq!(uart.read_byte(), None);
