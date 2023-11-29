@@ -9,6 +9,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
 
 [[package]]
+name = "bitflags"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4682ae6287fcf752ecaabbfcc7b6f9b72aa33933dc23a554d853aea8eea8635"
+
+[[package]]
 name = "embedded-hal"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -37,7 +43,7 @@ checksum = "546c37ac5d9e56f55e73b677106873d9d9f5190605e41a856503623648488cae"
 name = "uart8250"
 version = "0.6.0"
 dependencies = [
- "bitflags",
+ "bitflags 2.4.0",
  "embedded-hal",
  "nb 1.0.0",
  "volatile-register",
@@ -47,7 +53,7 @@ dependencies = [
 name = "uart_xilinx"
 version = "0.1.0"
 dependencies = [
- "bitflags",
+ "bitflags 1.2.1",
  "volatile-register",
 ]
 
