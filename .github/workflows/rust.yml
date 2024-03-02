@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Select nightly toolchain
+        run: rustup override set nightly
       - name: Build
         run: cargo build
       - name: Run tests

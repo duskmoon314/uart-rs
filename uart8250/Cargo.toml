@@ -14,10 +14,9 @@ readme = "README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bitflags = "1"
 embedded-hal = { version = "0.2.7", optional = true }
 nb = { version = "1.0.0", optional = true }
-volatile-register = "0.2"
+tock-registers = "0.7.0"
 
 [features]
 default = []

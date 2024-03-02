@@ -34,13 +34,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "546c37ac5d9e56f55e73b677106873d9d9f5190605e41a856503623648488cae"
 
 [[package]]
+name = "tock-registers"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ee8fba06c1f4d0b396ef61a54530bb6b28f0dc61c38bc8bc5a5a48161e6282e"
+
+[[package]]
 name = "uart8250"
 version = "0.6.0"
 dependencies = [
- "bitflags",
  "embedded-hal",
  "nb 1.0.0",
- "volatile-register",
+ "tock-registers",
 ]
 
 [[package]]
