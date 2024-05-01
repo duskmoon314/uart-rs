@@ -17,7 +17,7 @@ readme = "README.md"
 bitflags = "1"
 embedded-hal = { version = "0.2.7", optional = true }
 nb = { version = "1.0.0", optional = true }
-volatile-register = "0.2"
+volatile-register = "0.2.2"
 
 [features]
 default = []
