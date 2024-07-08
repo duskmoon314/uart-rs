@@ -11,4 +11,37 @@ This crate provides a struct with many methods to operate an 8250 UART.
 mod registers;
 mod uart;
 
-pub use uart::{ChipFifoInfo, InterruptType, MmioUart8250, Parity, TransmitError};
+use core::ops::{Deref, DerefMut};
+pub use uart::{ChipFifoInfo, InterruptType, Parity, TransmitError};
+use crate::registers::{Register};
+
+pub struct MmioUart8250<R:Register + Copy+'static>(uart::MmioUart8250<'static, R>);
+
+
+unsafe impl<R: Register + Copy + 'static> Send for MmioUart8250<R> {}
+unsafe impl<R: Register + Copy + 'static> Sync for MmioUart8250<R> {}
+
+
+impl MmioUart8250<u32> {
+    pub fn new(base_addr: usize) -> Self {
+        let uart_raw = unsafe { uart::MmioUart8250::<u32>::new(base_addr) };
+        MmioUart8250(uart_raw)
+    }
+    pub fn set_base_address(&mut self, base_address: usize) {
+        unsafe { self.0.set_base_address(base_address); }
+    }
+}
+
+impl Deref for MmioUart8250<u32> {
+    type Target = uart::MmioUart8250<'static, u32>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for MmioUart8250<u32> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
