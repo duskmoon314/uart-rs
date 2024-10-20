@@ -1,7 +1,6 @@
+use super::registers::Registers;
 #[cfg(feature = "fmt")]
 use core::fmt;
-
-use super::registers::Registers;
 
 bitflags! {
     /// Status Register Bit Definitions
@@ -41,7 +40,8 @@ impl MmioUartXpsLite {
         }
     }
 
-    pub fn reg(&self) -> &mut Registers {
+    #[allow(clippy::mut_from_ref)]
+    fn reg(&self) -> &mut Registers {
         unsafe { &mut *self.reg_pointer }
     }
 
@@ -189,7 +189,8 @@ impl MmioUartAxiLite {
         }
     }
 
-    pub fn reg(&self) -> &mut Registers {
+    #[allow(clippy::mut_from_ref)]
+    fn reg(&self) -> &mut Registers {
         unsafe { &mut *self.reg_pointer }
     }
 
