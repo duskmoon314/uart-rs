@@ -165,7 +165,7 @@ impl MmioUartXpsLite {
 ///
 /// A simple implementation, may be changed in the future
 #[cfg(feature = "fmt")]
-impl<'a> fmt::Write for MmioUartXpsLite<'a> {
+impl fmt::Write for MmioUartXpsLite {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         for c in s.as_bytes() {
             self.write_byte(*c);
@@ -340,7 +340,7 @@ impl MmioUartAxiLite {
 ///
 /// A simple implementation, may be changed in the future
 #[cfg(feature = "fmt")]
-impl<'a> fmt::Write for MmioUartAxiLite<'a> {
+impl fmt::Write for MmioUartAxiLite {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         for c in s.as_bytes() {
             self.write_byte(*c);
