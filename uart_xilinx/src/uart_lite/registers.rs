@@ -1,11 +1,5 @@
 use volatile_register::{RO, WO};
 
-macro_rules! cast {
-    ($expr:expr) => {
-        unsafe { &mut *(($expr) as *mut super::registers::Registers) }
-    };
-}
-
 /// # UART Registers
 #[repr(C)]
 pub struct Registers {

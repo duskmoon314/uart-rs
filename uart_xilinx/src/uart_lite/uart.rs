@@ -1,7 +1,6 @@
+use super::registers::Registers;
 #[cfg(feature = "fmt")]
 use core::fmt;
-
-use super::registers::Registers;
 
 bitflags! {
     /// Status Register Bit Definitions
@@ -29,21 +28,26 @@ bitflags! {
 /// # MMIO version of XPS UART Lite
 ///
 /// **Noticed** This hasn't been tested.
-pub struct MmioUartXpsLite<'a> {
-    reg: &'a mut Registers,
+pub struct MmioUartXpsLite {
+    reg_pointer: *mut Registers,
 }
 
-impl<'a> MmioUartXpsLite<'a> {
+impl MmioUartXpsLite {
     /// New a uart
-    pub fn new(base_address: usize) -> Self {
+    pub const fn new(base_address: usize) -> Self {
         Self {
-            reg: cast!(base_address),
+            reg_pointer: base_address as _,
         }
+    }
+
+    #[allow(clippy::mut_from_ref)]
+    fn reg(&self) -> &mut Registers {
+        unsafe { &mut *self.reg_pointer }
     }
 
     /// Set a new base_address
     pub fn set_base_address(&mut self, base_address: usize) {
-        self.reg = cast!(base_address);
+        self.reg_pointer = base_address as _;
     }
 
     /// Read a byte
@@ -63,25 +67,25 @@ impl<'a> MmioUartXpsLite<'a> {
     /// Read Rx FIFO
     #[inline]
     pub fn read_rx(&self) -> u32 {
-        self.reg.rx.read()
+        self.reg().rx.read()
     }
 
     /// Write Tx FIFO
     #[inline]
     pub fn write_tx(&self, value: u32) {
-        unsafe { self.reg.tx.write(value) }
+        unsafe { self.reg().tx.write(value) }
     }
 
     /// Read Uart Lite Status Register
     #[inline]
     pub fn read_stat(&self) -> u32 {
-        self.reg.stat.read()
+        self.reg().stat.read()
     }
 
     /// Get Uart Lite Status
     #[inline]
     pub fn status(&self) -> Status {
-        Status::from_bits_truncate(self.reg.stat.read().reverse_bits() as u8)
+        Status::from_bits_truncate(self.reg().stat.read().reverse_bits() as u8)
     }
 
     pub fn is_rx_fifo_valid(&self) -> bool {
@@ -119,7 +123,7 @@ impl<'a> MmioUartXpsLite<'a> {
     /// Write Uart Lite Control Register
     #[inline]
     pub fn write_ctrl(&self, value: u32) {
-        unsafe { self.reg.ctrl.write(value) }
+        unsafe { self.reg().ctrl.write(value) }
     }
 
     pub fn enable_interrupt(&self) {
@@ -161,7 +165,7 @@ impl<'a> MmioUartXpsLite<'a> {
 ///
 /// A simple implementation, may be changed in the future
 #[cfg(feature = "fmt")]
-impl<'a> fmt::Write for MmioUartXpsLite<'a> {
+impl fmt::Write for MmioUartXpsLite {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         for c in s.as_bytes() {
             self.write_byte(*c);
@@ -173,21 +177,26 @@ impl<'a> fmt::Write for MmioUartXpsLite<'a> {
 /// # MMIO version of AXI UART Lite
 ///
 /// **Noticed** This hasn't been tested.
-pub struct MmioUartAxiLite<'a> {
-    reg: &'a mut Registers,
+pub struct MmioUartAxiLite {
+    reg_pointer: *mut Registers,
 }
 
-impl<'a> MmioUartAxiLite<'a> {
+impl MmioUartAxiLite {
     /// New a uart
-    pub fn new(base_address: usize) -> Self {
+    pub const fn new(base_address: usize) -> Self {
         Self {
-            reg: cast!(base_address),
+            reg_pointer: base_address as _,
         }
+    }
+
+    #[allow(clippy::mut_from_ref)]
+    fn reg(&self) -> &mut Registers {
+        unsafe { &mut *self.reg_pointer }
     }
 
     /// Set a new base_address
     pub fn set_base_address(&mut self, base_address: usize) {
-        self.reg = cast!(base_address);
+        self.reg_pointer = base_address as _;
     }
 
     /// Read a byte
@@ -204,28 +213,55 @@ impl<'a> MmioUartAxiLite<'a> {
         self.write_tx(value as u32)
     }
 
+    /// Read a slice
+    pub fn read(&self, buf: &mut [u8]) -> usize {
+        let mut count = 0;
+        for current in buf {
+            if let Some(ch) = self.read_byte() {
+                count += 1;
+                *current = ch;
+            } else {
+                break;
+            }
+        }
+        count
+    }
+
+    /// Write a slice
+    pub fn write(&self, buf: &[u8]) -> usize {
+        let mut count = 0;
+        for current in buf {
+            if self.is_tx_fifo_full() {
+                break;
+            }
+            count += 1;
+            self.write_byte(*current);
+        }
+        count
+    }
+
     /// Read Rx FIFO
     #[inline]
     pub fn read_rx(&self) -> u32 {
-        self.reg.rx.read()
+        self.reg().rx.read()
     }
 
     /// Write Tx FIFO
     #[inline]
     pub fn write_tx(&self, value: u32) {
-        unsafe { self.reg.tx.write(value) }
+        unsafe { self.reg().tx.write(value) }
     }
 
     /// Read Uart Lite Status Register
     #[inline]
     pub fn read_stat(&self) -> u32 {
-        self.reg.stat.read()
+        self.reg().stat.read()
     }
 
     /// Get Uart Lite Status
     #[inline]
     pub fn status(&self) -> Status {
-        Status::from_bits_truncate(self.reg.stat.read() as u8)
+        Status::from_bits_truncate(self.reg().stat.read() as u8)
     }
 
     pub fn is_rx_fifo_valid(&self) -> bool {
@@ -263,7 +299,7 @@ impl<'a> MmioUartAxiLite<'a> {
     /// Write Uart Lite Control Register
     #[inline]
     pub fn write_ctrl(&self, value: u32) {
-        unsafe { self.reg.ctrl.write(value) }
+        unsafe { self.reg().ctrl.write(value) }
     }
 
     pub fn enable_interrupt(&self) {
@@ -304,7 +340,7 @@ impl<'a> MmioUartAxiLite<'a> {
 ///
 /// A simple implementation, may be changed in the future
 #[cfg(feature = "fmt")]
-impl<'a> fmt::Write for MmioUartAxiLite<'a> {
+impl fmt::Write for MmioUartAxiLite {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         for c in s.as_bytes() {
             self.write_byte(*c);
