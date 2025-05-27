@@ -1,2 +1,2 @@
 [workspace]
-members = ["uart8250", "uart_xilinx"]
+members = ["uart8250", "uart_xilinx", "uart_sifive"]
